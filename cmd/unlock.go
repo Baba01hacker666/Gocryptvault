@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"fmt"
-	"syscall"
+	"os"
+	"os/exec"
+	"time"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
+	"vaultfs/internal/daemon"
 )
 
 var unlockCmd = &cobra.Command{
@@ -13,25 +15,46 @@ var unlockCmd = &cobra.Command{
 	Short: "Unlock the vault",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print("Enter master password: ")
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		bytePassword, err := readPassword()
 		if err != nil {
 			return err
 		}
 		fmt.Println()
 
-		v := getVault()
-		if err := v.Unlock(bytePassword); err != nil {
-			return fmt.Errorf("unlock failed: %w", err)
+		client, err := daemon.ConnectRPC()
+		if err != nil {
+			// Daemon not running, start it
+			fmt.Println("Starting daemon in background...")
+			exe, err := os.Executable()
+			if err != nil {
+				return fmt.Errorf("failed to get executable path: %w", err)
+			}
+			daemonCmd := exec.Command(exe, "daemon")
+			if err := daemonCmd.Start(); err != nil {
+				return fmt.Errorf("failed to start daemon: %w", err)
+			}
+
+			// Wait for daemon to start
+			for i := 0; i < 10; i++ {
+				client, err = daemon.ConnectRPC()
+				if err == nil {
+					break
+				}
+				time.Sleep(1 * time.Second)
+			}
+			if client == nil {
+				return fmt.Errorf("failed to connect to daemon after starting it")
+			}
+		}
+		defer client.Close()
+
+		var reply bool
+		err = client.Call("VaultDaemon.Unlock", bytePassword, &reply)
+		if err != nil || !reply {
+			return fmt.Errorf("unlock failed: %v", err)
 		}
 
-		fmt.Println("Vault unlocked. Keys are in memory.")
-		// In a real application, you might spawn a daemon here to hold the keys
-		// and provide an API, or run the FUSE mount directly.
-		// For simplicity in this CLI structure without a daemon, unlock merely
-		// verifies the password. Operations require a daemon or running in single process.
-		// Given this is a CLI, operations would need to be chained or have a daemon.
-		// For the sake of the prompt "Create runtime session", we will assume
-		// tests run commands in sequence, but in CLI it requires keeping the process alive.
+		fmt.Println("Vault unlocked. Daemon is managing the keys.")
 		return nil
 	},
 }

@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var initCmd = &cobra.Command{
@@ -13,14 +11,14 @@ var initCmd = &cobra.Command{
 	Short: "Initialize a new vault",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print("Enter new master password: ")
-		bytePassword, err := term.ReadPassword(int(syscall.Stdin))
+		bytePassword, err := readPassword()
 		if err != nil {
 			return err
 		}
 		fmt.Println()
 
 		fmt.Print("Confirm password: ")
-		confirmPassword, err := term.ReadPassword(int(syscall.Stdin))
+		confirmPassword, err := readPassword()
 		if err != nil {
 			return err
 		}

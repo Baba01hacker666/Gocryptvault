@@ -7,29 +7,42 @@ import (
 
 	"github.com/spf13/cobra"
 	"vaultfs/internal/config"
-	"vaultfs/internal/session"
+	"vaultfs/internal/daemon"
 )
 
 var statusCmd = &cobra.Command{
 	Use:   "status",
 	Short: "Show vault status",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		vaultPath := config.GetVaultPath()
-		configPath := filepath.Join(vaultPath, "config.enc")
+		vPath := config.GetVaultPath()
+		fmt.Println("Vault Path:", vPath)
 
-		if _, err := os.Stat(configPath); os.IsNotExist(err) {
-			fmt.Println("Vault is not initialized.")
+		if _, err := os.Stat(filepath.Join(vPath, "config.enc")); os.IsNotExist(err) {
+			fmt.Println("Status: Not initialized")
 			return nil
 		}
 
-		_, err := session.GetSession()
+		client, err := daemon.ConnectRPC()
 		if err != nil {
-			fmt.Println("Vault is locked.")
-		} else {
-			fmt.Println("Vault is unlocked.")
+			fmt.Println("Status: Locked")
+			return nil
+		}
+		defer client.Close()
+
+		var reply daemon.StatusReply
+		err = client.Call("VaultDaemon.Status", &struct{}{}, &reply)
+		if err != nil {
+			fmt.Println("Status: Locked (Daemon error)")
+			return nil
 		}
 
-		fmt.Println("Vault directory:", vaultPath)
+		if reply.Unlocked {
+			fmt.Println("Status: Unlocked")
+			fmt.Println("Auto-lock in:", reply.TimeUntilLock)
+		} else {
+			fmt.Println("Status: Locked")
+		}
+
 		return nil
 	},
 }
