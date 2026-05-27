@@ -2,10 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"syscall"
 
 	"github.com/spf13/cobra"
-	"golang.org/x/term"
 )
 
 var changePasswordCmd = &cobra.Command{
@@ -13,21 +11,21 @@ var changePasswordCmd = &cobra.Command{
 	Short: "Change vault master password",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		fmt.Print("Enter old master password: ")
-		oldPassword, err := term.ReadPassword(int(syscall.Stdin))
+		oldPassword, err := readPassword()
 		if err != nil {
 			return err
 		}
 		fmt.Println()
 
 		fmt.Print("Enter new master password: ")
-		newPassword, err := term.ReadPassword(int(syscall.Stdin))
+		newPassword, err := readPassword()
 		if err != nil {
 			return err
 		}
 		fmt.Println()
 
 		fmt.Print("Confirm new password: ")
-		confirmPassword, err := term.ReadPassword(int(syscall.Stdin))
+		confirmPassword, err := readPassword()
 		if err != nil {
 			return err
 		}
