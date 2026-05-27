@@ -5,9 +5,12 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
+	"vaultfs/internal/metadata"
+	"vaultfs/internal/objects"
 	"vaultfs/internal/session"
 	"vaultfs/internal/storage"
 )
@@ -88,8 +91,61 @@ func (f *File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 	if err != nil {
 		return fuse.EIO
 	}
-	_ = sess
-	return fuse.ENOSYS // Simplified for now. Needs offset mapping to chunks.
+
+	files, err := f.Vault.ListFiles()
+	if err != nil {
+		return fuse.EIO
+	}
+
+	var record *metadata.FileRecord
+	for _, r := range files {
+		if r.ID == f.RecordID {
+			record = r
+			break
+		}
+	}
+	if record == nil {
+		return fuse.ENOENT
+	}
+
+	if req.Offset >= record.Size {
+		return nil // EOF
+	}
+
+	readEnd := req.Offset + int64(req.Size)
+	if readEnd > record.Size {
+		readEnd = record.Size
+	}
+
+	masterKey := sess.GetMasterKey()
+	objectsDir := filepath.Join(f.Vault.BaseDir, "objects")
+
+	var data []byte
+
+	startChunkIdx := req.Offset / objects.ChunkSize
+	endChunkIdx := (readEnd - 1) / objects.ChunkSize
+
+	for i := startChunkIdx; i <= endChunkIdx; i++ {
+		if i >= int64(len(record.Chunks)) {
+			break
+		}
+		chunkID := record.Chunks[i]
+		plaintext, err := objects.RetrieveChunk(objectsDir, chunkID, masterKey)
+		if err != nil {
+			return fuse.EIO
+		}
+		data = append(data, plaintext...)
+	}
+
+	offsetWithinChunks := req.Offset % objects.ChunkSize
+	readSize := readEnd - req.Offset
+
+	if offsetWithinChunks+readSize > int64(len(data)) {
+		return fuse.EIO
+	}
+
+	resp.Data = data[offsetWithinChunks : offsetWithinChunks+readSize]
+	return nil
 }
 
 func Mount(mountpoint string, vault *storage.Vault) error {
