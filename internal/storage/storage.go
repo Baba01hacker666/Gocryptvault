@@ -103,10 +103,7 @@ func (v *Vault) Unlock(password []byte) error {
 	configPath := filepath.Join(v.BaseDir, "config.enc")
 	cfg, err := config.LoadConfig(configPath)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return ErrNotInitialized
-		}
-		return err
+		return ErrNotInitialized
 	}
 
 	kek := crypto.DeriveKey(password, cfg.Salt)
