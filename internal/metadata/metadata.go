@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"vaultfs/internal/crypto"
 )
@@ -68,6 +69,14 @@ func SaveEncryptedMetadata(path string, db *MetadataDB, key []byte) error {
 		return fmt.Errorf("failed to encrypt metadata: %w", err)
 	}
 
-	// Write to a temporary file first for atomicity (simplification here)
-	return os.WriteFile(path, encryptedData, 0600)
+	tempPath := filepath.Join(filepath.Dir(path), "metadata.tmp")
+	if err := os.WriteFile(tempPath, encryptedData, 0600); err != nil {
+		return fmt.Errorf("failed to write temporary metadata file: %w", err)
+	}
+
+	if err := os.Rename(tempPath, path); err != nil {
+		return fmt.Errorf("failed to atomic rename metadata file: %w", err)
+	}
+
+	return nil
 }
