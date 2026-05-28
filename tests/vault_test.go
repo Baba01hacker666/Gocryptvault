@@ -5,11 +5,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"vaultfs/internal/storage"
+	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
 )
 
 func TestVaultLifecycle(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "vaultfs_test_*")
+	tmpDir, err := os.MkdirTemp("", "gocryptvault_test_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}

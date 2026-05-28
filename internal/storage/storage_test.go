@@ -8,7 +8,7 @@ import (
 )
 
 func TestVaultErrors(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "vaultfs_err_test_*")
+	tmpDir, err := os.MkdirTemp("", "gocryptvault_test_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -39,7 +39,7 @@ func TestVaultErrors(t *testing.T) {
 }
 
 func TestVaultDeleteAndChangePassword(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "vaultfs_test2_*")
+	tmpDir, err := os.MkdirTemp("", "gocryptvault_test2_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}

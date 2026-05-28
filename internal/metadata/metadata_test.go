@@ -1,10 +1,10 @@
 package metadata
 
 import (
+	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
 	"os"
 	"path/filepath"
 	"testing"
-	"vaultfs/internal/crypto"
 )
 
 func TestNewMetadataDB(t *testing.T) {
@@ -15,7 +15,7 @@ func TestNewMetadataDB(t *testing.T) {
 }
 
 func TestSaveAndLoadEncryptedMetadata(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "vaultfs_metadata_test_*")
+	tmpDir, err := os.MkdirTemp("", "gocryptvault_test_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}

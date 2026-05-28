@@ -5,9 +5,9 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/config"
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/config"
-	"vaultfs/internal/daemon"
 )
 
 var statusCmd = &cobra.Command{

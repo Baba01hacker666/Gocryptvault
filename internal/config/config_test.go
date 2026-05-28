@@ -7,7 +7,7 @@ import (
 )
 
 func TestSaveAndLoadConfig(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "vaultfs_config_test_*")
+	tmpDir, err := os.MkdirTemp("", "gocryptvault_test_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}

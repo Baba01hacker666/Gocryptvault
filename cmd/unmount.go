@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/fuse"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/fuse"
 )
 
 var unmountCmd = &cobra.Command{

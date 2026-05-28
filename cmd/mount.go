@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/fuse"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/fuse"
 )
 
 var mountCmd = &cobra.Command{

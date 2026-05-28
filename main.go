@@ -1,7 +1,7 @@
 package main
 
 import (
-	"vaultfs/cmd"
+	"github.com/Baba01hacker666/Gocryptvault/cmd"
 )
 
 func main() {
