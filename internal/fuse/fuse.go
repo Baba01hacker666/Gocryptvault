@@ -4,125 +4,139 @@ import (
 	"context"
 	"fmt"
 	"log"
-	"os"
 	"path/filepath"
+	"syscall"
 
-	"bazil.org/fuse"
-	"bazil.org/fuse/fs"
+	"github.com/hanwen/go-fuse/v2/fs"
+	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
 )
 
-type VaultFS struct {
+type VaultRoot struct {
+	fs.Inode
 	Vault *storage.Vault
 }
 
-func (vfs *VaultFS) Root() (fs.Node, error) {
-	return &Dir{Vault: vfs.Vault}, nil
+var _ = (fs.NodeOnAdder)((*VaultRoot)(nil))
+var _ = (fs.NodeReaddirer)((*VaultRoot)(nil))
+var _ = (fs.NodeLookuper)((*VaultRoot)(nil))
+
+func (r *VaultRoot) OnAdd(ctx context.Context) {
 }
 
-type Dir struct {
-	Vault *storage.Vault
-}
-
-func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) error {
-	a.Inode = 1
-	a.Mode = os.ModeDir | 0555
-	return nil
-}
-
-func (d *Dir) Lookup(ctx context.Context, name string) (fs.Node, error) {
-	files, err := d.Vault.ListFiles()
+func (r *VaultRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	files, err := r.Vault.ListFiles()
 	if err != nil {
-		return nil, fuse.ENOENT
+		return nil, syscall.ENOENT
 	}
 
 	for _, f := range files {
 		if f.Filename == name {
-			return &File{Vault: d.Vault, RecordID: f.ID}, nil
+			child := &FileNode{
+				Vault:    r.Vault,
+				RecordID: f.ID,
+			}
+			return r.NewInode(ctx, child, fs.StableAttr{Mode: fuse.S_IFREG | 0444}), 0
 		}
 	}
 
-	return nil, fuse.ENOENT
+	return nil, syscall.ENOENT
 }
 
-func (d *Dir) ReadDirAll(ctx context.Context) ([]fuse.Dirent, error) {
-	files, err := d.Vault.ListFiles()
+func (r *VaultRoot) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
+	files, err := r.Vault.ListFiles()
 	if err != nil {
-		return nil, err
+		return nil, syscall.EIO
 	}
 
-	var dirents []fuse.Dirent
+	entries := make([]fuse.DirEntry, 0, len(files))
 	for _, f := range files {
-		dirents = append(dirents, fuse.Dirent{
-			Inode: 0,
-			Name:  f.Filename,
-			Type:  fuse.DT_File,
+		entries = append(entries, fuse.DirEntry{
+			Mode: fuse.S_IFREG | 0444,
+			Name: f.Filename,
 		})
 	}
-	return dirents, nil
+	return fs.NewListDirStream(entries), 0
 }
 
-type File struct {
+type FileNode struct {
+	fs.Inode
 	Vault    *storage.Vault
 	RecordID string
 }
 
-func (f *File) Attr(ctx context.Context, a *fuse.Attr) error {
+var _ = (fs.NodeOpener)((*FileNode)(nil))
+var _ = (fs.NodeGetattrer)((*FileNode)(nil))
+
+func (f *FileNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
 	files, err := f.Vault.ListFiles()
 	if err != nil {
-		return err
+		return syscall.EIO
 	}
 	for _, record := range files {
 		if record.ID == f.RecordID {
-			a.Inode = 0
-			a.Mode = 0444
-			a.Size = uint64(record.Size)
-			return nil
+			out.Mode = fuse.S_IFREG | 0444
+			out.Size = uint64(record.Size)
+			return 0
 		}
 	}
-	return fuse.ENOENT
+	return syscall.ENOENT
 }
 
-func (f *File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadResponse) error {
+func (f *FileNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, uint32, syscall.Errno) {
+	return &FileHandle{
+		Vault:    f.Vault,
+		RecordID: f.RecordID,
+	}, fuse.FOPEN_KEEP_CACHE, 0
+}
+
+type FileHandle struct {
+	Vault    *storage.Vault
+	RecordID string
+}
+
+var _ = (fs.FileReader)((*FileHandle)(nil))
+
+func (fh *FileHandle) Read(ctx context.Context, dest []byte, off int64) (fuse.ReadResult, syscall.Errno) {
 	sess, err := session.GetSession()
 	if err != nil {
-		return fuse.EIO
+		return nil, syscall.EIO
 	}
 
-	files, err := f.Vault.ListFiles()
+	files, err := fh.Vault.ListFiles()
 	if err != nil {
-		return fuse.EIO
+		return nil, syscall.EIO
 	}
 
 	var record *metadata.FileRecord
 	for _, r := range files {
-		if r.ID == f.RecordID {
+		if r.ID == fh.RecordID {
 			record = r
 			break
 		}
 	}
 	if record == nil {
-		return fuse.ENOENT
+		return nil, syscall.ENOENT
 	}
 
-	if req.Offset >= record.Size {
-		return nil // EOF
+	if off >= record.Size {
+		return fuse.ReadResultData(nil), 0 // EOF
 	}
 
-	readEnd := req.Offset + int64(req.Size)
+	readEnd := off + int64(len(dest))
 	if readEnd > record.Size {
 		readEnd = record.Size
 	}
 
 	masterKey := sess.GetMasterKey()
-	objectsDir := filepath.Join(f.Vault.BaseDir, "objects")
+	objectsDir := filepath.Join(fh.Vault.BaseDir, "objects")
 
 	var data []byte
 
-	startChunkIdx := req.Offset / objects.ChunkSize
+	startChunkIdx := off / objects.ChunkSize
 	endChunkIdx := (readEnd - 1) / objects.ChunkSize
 
 	for i := startChunkIdx; i <= endChunkIdx; i++ {
@@ -132,21 +146,22 @@ func (f *File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 		chunkID := record.Chunks[i]
 		plaintext, err := objects.RetrieveChunk(objectsDir, chunkID, masterKey, record.Compressed)
 		if err != nil {
-			return fuse.EIO
+			return nil, syscall.EIO
 		}
 		data = append(data, plaintext...)
 	}
 
-	offsetWithinChunks := req.Offset % objects.ChunkSize
-	readSize := readEnd - req.Offset
+	offsetWithinChunks := off % objects.ChunkSize
+	readSize := readEnd - off
 
 	if offsetWithinChunks+readSize > int64(len(data)) {
-		return fuse.EIO
+		return nil, syscall.EIO
 	}
 
-	resp.Data = data[offsetWithinChunks : offsetWithinChunks+readSize]
-	return nil
+	return fuse.ReadResultData(data[offsetWithinChunks : offsetWithinChunks+readSize]), 0
 }
+
+var unmountFunc func() error
 
 func Mount(mountpoint string, vault *storage.Vault) error {
 	sess, err := session.GetSession()
@@ -154,26 +169,33 @@ func Mount(mountpoint string, vault *storage.Vault) error {
 		return fmt.Errorf("vault must be unlocked to mount")
 	}
 
-	c, err := fuse.Mount(
-		mountpoint,
-		fuse.FSName("vaultfs"),
-		fuse.Subtype("vaultfs"),
-	)
+	root := &VaultRoot{
+		Vault: vault,
+	}
+
+	server, err := fs.Mount(mountpoint, root, &fs.Options{
+		MountOptions: fuse.MountOptions{
+			FsName: "vaultfs",
+			Name:   "vaultfs",
+		},
+	})
 	if err != nil {
 		return err
 	}
-	defer c.Close()
 
 	log.Printf("Mounted vault at %s", mountpoint)
 
-	err = fs.Serve(c, &VaultFS{Vault: vault})
-	if err != nil {
-		return err
-	}
+	unmountFunc = server.Unmount
+
+	go server.Wait()
 
 	return nil
 }
 
 func Unmount(mountpoint string) error {
-	return fuse.Unmount(mountpoint)
+    if unmountFunc != nil {
+        return unmountFunc()
+    }
+    // Fallback if we didn't start the mount process in this instance
+    return fmt.Errorf("unmount not supported directly without mount server reference, use umount %s", mountpoint)
 }

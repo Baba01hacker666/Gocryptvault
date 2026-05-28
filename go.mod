@@ -3,7 +3,7 @@ module github.com/Baba01hacker666/Gocryptvault
 go 1.25.0
 
 require (
-	bazil.org/fuse v0.0.0-20230120002735-62a210ff1fd5
+	github.com/hanwen/go-fuse/v2 v2.10.1
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.52.0
 	golang.org/x/sys v0.45.0
