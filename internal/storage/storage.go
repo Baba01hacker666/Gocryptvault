@@ -137,6 +137,15 @@ func (v *Vault) generateUUID() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
+func (v *Vault) AddFileAsync(sourcePath string) <-chan error {
+	errChan := make(chan error, 1)
+	go func() {
+		errChan <- v.AddFile(sourcePath)
+		close(errChan)
+	}()
+	return errChan
+}
+
 func (v *Vault) AddFile(sourcePath string) error {
 	sess, err := session.GetSession()
 	if err != nil {
