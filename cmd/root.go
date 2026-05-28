@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/config"
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
+	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/config"
-	"vaultfs/internal/daemon"
-	"vaultfs/internal/storage"
 )
 
 var rootCmd = &cobra.Command{

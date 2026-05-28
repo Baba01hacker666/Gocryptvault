@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"vaultfs/internal/memory"
+	"github.com/Baba01hacker666/Gocryptvault/internal/memory"
 )
 
 var (

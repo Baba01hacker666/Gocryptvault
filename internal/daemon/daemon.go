@@ -12,12 +12,12 @@ import (
 	"syscall"
 	"time"
 
-	"vaultfs/internal/config"
-	"vaultfs/internal/session"
-	"vaultfs/internal/storage"
+	"github.com/Baba01hacker666/Gocryptvault/internal/config"
+	"github.com/Baba01hacker666/Gocryptvault/internal/session"
+	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
 )
 
-const SocketName = "vaultfs.sock"
+const SocketName = "github.com/Baba01hacker666/Gocryptvault.sock"
 const AutoLockTimeout = 15 * time.Minute
 
 type Daemon struct {

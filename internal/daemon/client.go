@@ -3,7 +3,7 @@ package daemon
 import (
 	"fmt"
 
-	"vaultfs/internal/session"
+	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 )
 
 func EnsureLocalSession() error {

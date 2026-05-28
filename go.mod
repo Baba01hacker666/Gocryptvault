@@ -1,4 +1,4 @@
-module vaultfs
+module github.com/Baba01hacker666/Gocryptvault
 
 go 1.25.0
 

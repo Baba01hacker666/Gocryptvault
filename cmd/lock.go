@@ -3,8 +3,8 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/daemon"
 )
 
 var lockCmd = &cobra.Command{

@@ -6,8 +6,8 @@ import (
 	"os/exec"
 	"time"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/daemon"
 )
 
 var unlockCmd = &cobra.Command{

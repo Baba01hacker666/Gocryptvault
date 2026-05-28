@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
 	"github.com/spf13/cobra"
-	"vaultfs/internal/daemon"
 )
 
 var daemonCmd = &cobra.Command{

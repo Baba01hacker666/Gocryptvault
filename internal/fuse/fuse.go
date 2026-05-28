@@ -9,10 +9,10 @@ import (
 
 	"bazil.org/fuse"
 	"bazil.org/fuse/fs"
-	"vaultfs/internal/metadata"
-	"vaultfs/internal/objects"
-	"vaultfs/internal/session"
-	"vaultfs/internal/storage"
+	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
+	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
+	"github.com/Baba01hacker666/Gocryptvault/internal/session"
+	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
 )
 
 type VaultFS struct {
@@ -130,7 +130,7 @@ func (f *File) Read(ctx context.Context, req *fuse.ReadRequest, resp *fuse.ReadR
 			break
 		}
 		chunkID := record.Chunks[i]
-		plaintext, err := objects.RetrieveChunk(objectsDir, chunkID, masterKey)
+		plaintext, err := objects.RetrieveChunk(objectsDir, chunkID, masterKey, record.Compressed)
 		if err != nil {
 			return fuse.EIO
 		}

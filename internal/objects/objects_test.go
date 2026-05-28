@@ -2,14 +2,14 @@ package objects
 
 import (
 	"bytes"
+	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
 	"os"
 	"path/filepath"
 	"testing"
-	"vaultfs/internal/crypto"
 )
 
 func TestStoreRetrieveDeleteChunk(t *testing.T) {
-	tmpDir, err := os.MkdirTemp("", "vaultfs_objects_test_*")
+	tmpDir, err := os.MkdirTemp("", "gocryptvault_test_*")
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
@@ -35,7 +35,7 @@ func TestStoreRetrieveDeleteChunk(t *testing.T) {
 	}
 
 	// 3. Retrieve
-	retrieved, err := RetrieveChunk(tmpDir, chunkID, key)
+	retrieved, err := RetrieveChunk(tmpDir, chunkID, key, true)
 	if err != nil {
 		t.Fatalf("RetrieveChunk failed: %v", err)
 	}
@@ -45,7 +45,7 @@ func TestStoreRetrieveDeleteChunk(t *testing.T) {
 
 	// 4. Retrieve with wrong key
 	wrongKey, _ := crypto.GenerateRandomBytes(crypto.KeyLen)
-	_, err = RetrieveChunk(tmpDir, chunkID, wrongKey)
+	_, err = RetrieveChunk(tmpDir, chunkID, wrongKey, true)
 	if err == nil {
 		t.Errorf("expected error when retrieving with wrong key")
 	}
@@ -61,12 +61,12 @@ func TestStoreRetrieveDeleteChunk(t *testing.T) {
 }
 
 func TestInvalidChunk(t *testing.T) {
-	tmpDir, _ := os.MkdirTemp("", "vaultfs_objects_test_invalid_*")
+	tmpDir, _ := os.MkdirTemp("", "gocryptvault_test_invalid_*")
 	defer os.RemoveAll(tmpDir)
 
 	key, _ := crypto.GenerateRandomBytes(crypto.KeyLen)
 
-	_, err := RetrieveChunk(tmpDir, "a", key)
+	_, err := RetrieveChunk(tmpDir, "a", key, true)
 	if err == nil {
 		t.Errorf("expected error for too short chunk ID")
 	}
@@ -76,7 +76,7 @@ func TestInvalidChunk(t *testing.T) {
 		t.Errorf("expected no error for too short chunk ID in delete, got %v", err)
 	}
 
-	_, err = RetrieveChunk(tmpDir, "doesnotexist", key)
+	_, err = RetrieveChunk(tmpDir, "doesnotexist", key, true)
 	if err == nil {
 		t.Errorf("expected error for non-existent chunk")
 	}

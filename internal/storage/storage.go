@@ -6,15 +6,18 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
+	"sync"
 	"time"
 
-	"vaultfs/internal/config"
-	"vaultfs/internal/crypto"
-	"vaultfs/internal/metadata"
-	"vaultfs/internal/objects"
-	"vaultfs/internal/session"
+	"github.com/Baba01hacker666/Gocryptvault/internal/config"
+	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
+	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
+	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
+	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 )
 
 var (
@@ -151,34 +154,115 @@ func (v *Vault) AddFile(sourcePath string) error {
 		return err
 	}
 
+	// Detect MIME type
+	mimeBuf := make([]byte, 512)
+	n, _ := f.Read(mimeBuf)
+	mimeType := http.DetectContentType(mimeBuf[:n])
+	// Reset file pointer
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("failed to seek file: %w", err)
+	}
+
+	// Determine number of chunks
+	numChunks := int((info.Size() + int64(objects.ChunkSize) - 1) / int64(objects.ChunkSize))
+	if numChunks == 0 {
+		// Handle empty file
+		numChunks = 1
+	}
+
 	record := &metadata.FileRecord{
-		ID:       v.generateUUID(),
-		Filename: filepath.Base(sourcePath),
-		Size:     info.Size(),
-		Created:  time.Now().Unix(),
-		Modified: info.ModTime().Unix(),
-		Chunks:   []string{},
+		ID:         v.generateUUID(),
+		Filename:   filepath.Base(sourcePath),
+		Size:       info.Size(),
+		MimeType:   mimeType,
+		Compressed: true, // New chunks have compression headers
+		Created:    time.Now().Unix(),
+		Modified:   info.ModTime().Unix(),
+		Chunks:     make([]string, numChunks),
 	}
 
 	masterKey := sess.GetMasterKey()
 	objectsDir := filepath.Join(v.BaseDir, "objects")
 
-	buf := make([]byte, objects.ChunkSize)
-	for {
-		n, err := f.Read(buf)
-		if n > 0 {
-			chunkID, storeErr := objects.StoreChunk(objectsDir, buf[:n], masterKey)
-			if storeErr != nil {
-				return fmt.Errorf("failed to store chunk: %w", storeErr)
+	type chunkJob struct {
+		index int
+		data  []byte
+	}
+
+	type chunkResult struct {
+		index   int
+		chunkID string
+		err     error
+	}
+
+	numWorkers := runtime.NumCPU()
+	if numWorkers > 4 {
+		numWorkers = 4 // Limit concurrency to avoid excessive memory usage
+	}
+
+	jobs := make(chan chunkJob, numWorkers)
+	results := make(chan chunkResult, numWorkers)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobs {
+				chunkID, err := objects.StoreChunk(objectsDir, job.data, masterKey)
+				results <- chunkResult{
+					index:   job.index,
+					chunkID: chunkID,
+					err:     err,
+				}
 			}
-			record.Chunks = append(record.Chunks, chunkID)
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	var readErr error
+	go func() {
+		chunkIndex := 0
+		for {
+			buf := make([]byte, objects.ChunkSize)
+			n, err := f.Read(buf)
+			if n > 0 {
+				jobs <- chunkJob{
+					index: chunkIndex,
+					data:  buf[:n],
+				}
+				chunkIndex++
+			}
+			if err == io.EOF {
+				break
+			}
+			if err != nil {
+				readErr = err
+				break
+			}
 		}
-		if err == io.EOF {
-			break
+		close(jobs)
+	}()
+
+	for res := range results {
+		if res.err != nil {
+			return fmt.Errorf("failed to store chunk: %w", res.err)
 		}
-		if err != nil {
-			return err
-		}
+		record.Chunks[res.index] = res.chunkID
+	}
+
+	if readErr != nil {
+		return readErr
+	}
+
+	// Truncate Chunks slice if empty file resulted in 0 actual chunks written
+	if info.Size() == 0 {
+		record.Chunks = []string{}
 	}
 
 	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
@@ -220,13 +304,78 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 	masterKey := sess.GetMasterKey()
 	objectsDir := filepath.Join(v.BaseDir, "objects")
 
-	for _, chunkID := range record.Chunks {
-		plaintext, err := objects.RetrieveChunk(objectsDir, chunkID, masterKey)
-		if err != nil {
-			return err
+	type exportJob struct {
+		index   int
+		chunkID string
+	}
+
+	type exportResult struct {
+		index int
+		data  []byte
+		err   error
+	}
+
+	numWorkers := runtime.NumCPU()
+	if numWorkers > 4 {
+		numWorkers = 4
+	}
+
+	jobs := make(chan exportJob, numWorkers)
+	results := make(chan exportResult, numWorkers)
+
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobs {
+				plaintext, err := objects.RetrieveChunk(objectsDir, job.chunkID, masterKey, record.Compressed)
+				results <- exportResult{
+					index: job.index,
+					data:  plaintext,
+					err:   err,
+				}
+			}
+		}()
+	}
+
+	go func() {
+		wg.Wait()
+		close(results)
+	}()
+
+	go func() {
+		for i, chunkID := range record.Chunks {
+			jobs <- exportJob{
+				index:   i,
+				chunkID: chunkID,
+			}
 		}
-		if _, err := out.Write(plaintext); err != nil {
-			return err
+		close(jobs)
+	}()
+
+	// Process results incrementally to avoid loading entire file in memory
+	resultMap := make(map[int][]byte)
+	nextIndexToWrite := 0
+
+	for res := range results {
+		if res.err != nil {
+			return res.err
+		}
+		resultMap[res.index] = res.data
+
+		// Drain the map sequentially
+		for {
+			if data, ok := resultMap[nextIndexToWrite]; ok {
+				if _, err := out.Write(data); err != nil {
+					return err
+				}
+				delete(resultMap, nextIndexToWrite)
+				nextIndexToWrite++
+			} else {
+				break
+			}
 		}
 	}
 
