@@ -5,60 +5,111 @@ import (
 	"fmt"
 	"log"
 	"path/filepath"
+	"strings"
 	"syscall"
 
-	"github.com/hanwen/go-fuse/v2/fs"
-	"github.com/hanwen/go-fuse/v2/fuse"
 	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
+	"github.com/hanwen/go-fuse/v2/fs"
+	"github.com/hanwen/go-fuse/v2/fuse"
 )
 
-type VaultRoot struct {
+type DirNode struct {
 	fs.Inode
 	Vault *storage.Vault
+	Path  string
 }
 
-var _ = (fs.NodeOnAdder)((*VaultRoot)(nil))
-var _ = (fs.NodeReaddirer)((*VaultRoot)(nil))
-var _ = (fs.NodeLookuper)((*VaultRoot)(nil))
+var _ = (fs.NodeOnAdder)((*DirNode)(nil))
+var _ = (fs.NodeReaddirer)((*DirNode)(nil))
+var _ = (fs.NodeLookuper)((*DirNode)(nil))
 
-func (r *VaultRoot) OnAdd(ctx context.Context) {
-}
+func (d *DirNode) OnAdd(ctx context.Context) {}
 
-func (r *VaultRoot) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
-	files, err := r.Vault.ListFiles()
+func (d *DirNode) Lookup(ctx context.Context, name string, out *fuse.EntryOut) (*fs.Inode, syscall.Errno) {
+	files, err := d.Vault.ListFiles()
 	if err != nil {
 		return nil, syscall.ENOENT
 	}
 
+	searchPrefix := ""
+	if d.Path != "" {
+		searchPrefix = d.Path + string(filepath.Separator)
+	}
+
 	for _, f := range files {
-		if f.Filename == name {
-			child := &FileNode{
-				Vault:    r.Vault,
-				RecordID: f.ID,
+		if !strings.HasPrefix(f.Filename, searchPrefix) {
+			continue
+		}
+
+		relPath := strings.TrimPrefix(f.Filename, searchPrefix)
+		parts := strings.Split(relPath, string(filepath.Separator))
+
+		if parts[0] == name {
+			if len(parts) == 1 {
+				// It's a file
+				child := &FileNode{
+					Vault:    d.Vault,
+					RecordID: f.ID,
+				}
+				return d.NewInode(ctx, child, fs.StableAttr{Mode: fuse.S_IFREG | 0444}), 0
+			} else {
+				// It's a directory
+				childDir := &DirNode{
+					Vault: d.Vault,
+					Path:  filepath.Join(d.Path, name),
+				}
+				return d.NewInode(ctx, childDir, fs.StableAttr{Mode: fuse.S_IFDIR | 0555}), 0
 			}
-			return r.NewInode(ctx, child, fs.StableAttr{Mode: fuse.S_IFREG | 0444}), 0
 		}
 	}
 
 	return nil, syscall.ENOENT
 }
 
-func (r *VaultRoot) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
-	files, err := r.Vault.ListFiles()
+func (d *DirNode) Readdir(ctx context.Context) (fs.DirStream, syscall.Errno) {
+	files, err := d.Vault.ListFiles()
 	if err != nil {
 		return nil, syscall.EIO
 	}
 
-	entries := make([]fuse.DirEntry, 0, len(files))
-	for _, f := range files {
-		entries = append(entries, fuse.DirEntry{
-			Mode: fuse.S_IFREG | 0444,
-			Name: f.Filename,
-		})
+	searchPrefix := ""
+	if d.Path != "" {
+		searchPrefix = d.Path + string(filepath.Separator)
 	}
+
+	entriesMap := make(map[string]fuse.DirEntry)
+
+	for _, f := range files {
+		if !strings.HasPrefix(f.Filename, searchPrefix) {
+			continue
+		}
+
+		relPath := strings.TrimPrefix(f.Filename, searchPrefix)
+		parts := strings.Split(relPath, string(filepath.Separator))
+
+		if len(parts) == 1 {
+			// File
+			entriesMap[parts[0]] = fuse.DirEntry{
+				Mode: fuse.S_IFREG | 0444,
+				Name: parts[0],
+			}
+		} else {
+			// Directory
+			entriesMap[parts[0]] = fuse.DirEntry{
+				Mode: fuse.S_IFDIR | 0555,
+				Name: parts[0],
+			}
+		}
+	}
+
+	entries := make([]fuse.DirEntry, 0, len(entriesMap))
+	for _, e := range entriesMap {
+		entries = append(entries, e)
+	}
+
 	return fs.NewListDirStream(entries), 0
 }
 
@@ -169,8 +220,9 @@ func Mount(mountpoint string, vault *storage.Vault) error {
 		return fmt.Errorf("vault must be unlocked to mount")
 	}
 
-	root := &VaultRoot{
+	root := &DirNode{
 		Vault: vault,
+		Path:  "",
 	}
 
 	server, err := fs.Mount(mountpoint, root, &fs.Options{
@@ -193,9 +245,9 @@ func Mount(mountpoint string, vault *storage.Vault) error {
 }
 
 func Unmount(mountpoint string) error {
-    if unmountFunc != nil {
-        return unmountFunc()
-    }
-    // Fallback if we didn't start the mount process in this instance
-    return fmt.Errorf("unmount not supported directly without mount server reference, use umount %s", mountpoint)
+	if unmountFunc != nil {
+		return unmountFunc()
+	}
+	// Fallback if we didn't start the mount process in this instance
+	return fmt.Errorf("unmount not supported directly without mount server reference, use umount %s", mountpoint)
 }

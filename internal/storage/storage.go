@@ -137,16 +137,16 @@ func (v *Vault) generateUUID() string {
 	return fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
 }
 
-func (v *Vault) AddFileAsync(sourcePath string) <-chan error {
+func (v *Vault) AddFileAsync(sourcePath string, logicalName string) <-chan error {
 	errChan := make(chan error, 1)
 	go func() {
-		errChan <- v.AddFile(sourcePath)
+		errChan <- v.AddFile(sourcePath, logicalName)
 		close(errChan)
 	}()
 	return errChan
 }
 
-func (v *Vault) AddFile(sourcePath string) error {
+func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 	sess, err := session.GetSession()
 	if err != nil {
 		return err
@@ -180,8 +180,13 @@ func (v *Vault) AddFile(sourcePath string) error {
 	}
 
 	record := &metadata.FileRecord{
-		ID:         v.generateUUID(),
-		Filename:   filepath.Base(sourcePath),
+		ID: v.generateUUID(),
+		Filename: func() string {
+			if logicalName != "" {
+				return logicalName
+			}
+			return filepath.Base(sourcePath)
+		}(),
 		Size:       info.Size(),
 		MimeType:   mimeType,
 		Compressed: true, // New chunks have compression headers
@@ -303,6 +308,10 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 
 	// Make sure outPath is a directory, append filename
 	dest := filepath.Join(outPath, record.Filename)
+
+	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
+		return err
+	}
 
 	out, err := os.Create(dest)
 	if err != nil {

@@ -121,12 +121,61 @@ func RetrieveChunk(objectsDir string, chunkID string, key []byte, hasHeader bool
 	return payload, nil
 }
 
-// DeleteChunk removes a chunk from disk.
+// DeleteChunk removes a chunk from disk securely.
 func DeleteChunk(objectsDir string, chunkID string) error {
 	if len(chunkID) < 2 {
 		return nil
 	}
 	subDir := chunkID[:2]
 	chunkPath := filepath.Join(objectsDir, subDir, chunkID)
+
+	if info, err := os.Stat(chunkPath); err == nil && info.Size() > 0 {
+		if f, err := os.OpenFile(chunkPath, os.O_WRONLY, 0); err == nil {
+			size := info.Size()
+			buf := make([]byte, 4096)
+
+			// Pass 1: Zeros
+			for i := range buf {
+				buf[i] = 0x00
+			}
+			overwritePass(f, size, buf)
+
+			// Pass 2: Ones
+			for i := range buf {
+				buf[i] = 0xFF
+			}
+			overwritePass(f, size, buf)
+
+			// Pass 3: Random
+			for i := int64(0); i < size; i += int64(len(buf)) {
+				randomData, _ := crypto.GenerateRandomBytes(uint32(len(buf)))
+				copy(buf, randomData)
+				// We don't bother strictly with n size here since it's just wiping
+			}
+			overwritePass(f, size, buf)
+
+			f.Close()
+		}
+	}
+
 	return os.Remove(chunkPath)
+}
+
+func overwritePass(f *os.File, size int64, buf []byte) error {
+	if _, err := f.Seek(0, 0); err != nil {
+		return err
+	}
+	written := int64(0)
+	for written < size {
+		n := size - written
+		if n > int64(len(buf)) {
+			n = int64(len(buf))
+		}
+		w, err := f.Write(buf[:n])
+		if err != nil {
+			return err
+		}
+		written += int64(w)
+	}
+	return f.Sync()
 }

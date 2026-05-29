@@ -33,7 +33,7 @@ func TestVaultLifecycle(t *testing.T) {
 	testFile := filepath.Join(tmpDir, "test.txt")
 	os.WriteFile(testFile, []byte("test content"), 0644)
 
-	if err := v.AddFile(testFile); err != nil {
+	if err := v.AddFile(testFile, "test.txt"); err != nil {
 		t.Fatalf("failed to add file: %v", err)
 	}
 

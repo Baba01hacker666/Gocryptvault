@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
 )
@@ -10,30 +11,68 @@ import (
 var asyncAdd bool
 
 var addCmd = &cobra.Command{
-	Use:   "add [file]",
-	Short: "Add a file to the vault",
+	Use:   "add [file_or_directory]",
+	Short: "Add a file or directory to the vault",
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
-		filePath := args[0]
-		if _, err := os.Stat(filePath); err != nil {
+		targetPath := args[0]
+
+		targetPath = filepath.Clean(targetPath)
+
+		info, err := os.Stat(targetPath)
+		if err != nil {
 			return err
 		}
 
 		v := getVault()
-		// Assume unlocked previously in context of a test or daemon
-		if asyncAdd {
-			fmt.Println("Adding file asynchronously...")
-			errChan := v.AddFileAsync(filePath)
-			err := <-errChan
+
+		if info.IsDir() {
+			fmt.Printf("Adding directory %s...\n", targetPath)
+			err := filepath.Walk(targetPath, func(path string, info os.FileInfo, err error) error {
+				if err != nil {
+					return err
+				}
+				if info.IsDir() {
+					return nil
+				}
+
+				relPath, err := filepath.Rel(filepath.Dir(targetPath), path)
+				if err != nil {
+					return err
+				}
+
+				if asyncAdd {
+					errChan := v.AddFileAsync(path, relPath)
+					err = <-errChan
+					if err != nil {
+						return fmt.Errorf("failed to add file %s asynchronously: %w", path, err)
+					}
+				} else {
+					if err := v.AddFile(path, relPath); err != nil {
+						return fmt.Errorf("failed to add file %s: %w", path, err)
+					}
+				}
+				return nil
+			})
 			if err != nil {
-				return fmt.Errorf("failed to add file asynchronously: %w", err)
+				return fmt.Errorf("failed to add directory: %w", err)
 			}
-			fmt.Println("File added successfully.")
+			fmt.Println("Directory added successfully.")
 		} else {
-			if err := v.AddFile(filePath); err != nil {
-				return fmt.Errorf("failed to add file: %w", err)
+			if asyncAdd {
+				fmt.Println("Adding file asynchronously...")
+				errChan := v.AddFileAsync(targetPath, filepath.Base(targetPath))
+				err := <-errChan
+				if err != nil {
+					return fmt.Errorf("failed to add file asynchronously: %w", err)
+				}
+				fmt.Println("File added successfully.")
+			} else {
+				if err := v.AddFile(targetPath, filepath.Base(targetPath)); err != nil {
+					return fmt.Errorf("failed to add file: %w", err)
+				}
+				fmt.Println("File added successfully.")
 			}
-			fmt.Println("File added successfully.")
 		}
 
 		return nil

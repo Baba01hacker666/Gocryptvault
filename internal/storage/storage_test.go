@@ -54,7 +54,7 @@ func TestVaultDeleteAndChangePassword(t *testing.T) {
 	// Add file
 	testFile := filepath.Join(tmpDir, "test.txt")
 	os.WriteFile(testFile, []byte("delete me"), 0644)
-	v.AddFile(testFile)
+	v.AddFile(testFile, "test.txt")
 
 	files, _ := v.ListFiles()
 	if len(files) != 1 {
