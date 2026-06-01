@@ -20,15 +20,16 @@ func NewMetadataDB() *MetadataDB {
 	}
 }
 
-func LoadEncryptedMetadata(path string, key []byte) (*MetadataDB, error) {
-	encryptedData, err := os.ReadFile(path)
+func EncryptMetadata(db *MetadataDB, key []byte) ([]byte, error) {
+	data, err := json.Marshal(db)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return NewMetadataDB(), nil // return empty DB if not found
-		}
-		return nil, fmt.Errorf("failed to read metadata file: %w", err)
+		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
 	}
 
+	return crypto.Encrypt(data, key)
+}
+
+func DecryptMetadata(encryptedData []byte, key []byte) (*MetadataDB, error) {
 	if len(encryptedData) == 0 {
 		return NewMetadataDB(), nil
 	}
@@ -50,15 +51,22 @@ func LoadEncryptedMetadata(path string, key []byte) (*MetadataDB, error) {
 	return &db, nil
 }
 
-func SaveEncryptedMetadata(path string, db *MetadataDB, key []byte) error {
-	data, err := json.Marshal(db)
+func LoadEncryptedMetadata(path string, key []byte) (*MetadataDB, error) {
+	encryptedData, err := os.ReadFile(path)
 	if err != nil {
-		return fmt.Errorf("failed to marshal metadata: %w", err)
+		if os.IsNotExist(err) {
+			return NewMetadataDB(), nil // return empty DB if not found
+		}
+		return nil, fmt.Errorf("failed to read metadata file: %w", err)
 	}
 
-	encryptedData, err := crypto.Encrypt(data, key)
+	return DecryptMetadata(encryptedData, key)
+}
+
+func SaveEncryptedMetadata(path string, db *MetadataDB, key []byte) error {
+	encryptedData, err := EncryptMetadata(db, key)
 	if err != nil {
-		return fmt.Errorf("failed to encrypt metadata: %w", err)
+		return err
 	}
 
 	tempPath := filepath.Join(filepath.Dir(path), "metadata.tmp")

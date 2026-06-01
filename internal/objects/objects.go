@@ -106,9 +106,15 @@ func decryptAndDecompress(ciphertext []byte, key []byte) ([]byte, error) {
 	return payload, nil
 }
 
-// StoreShards compresses, encrypts, and shards data using Reed-Solomon erasure coding.
-// Returns a list of shard IDs and the size of the ciphertext before sharding.
-func StoreShards(objectsDir string, plaintext []byte, key []byte) ([]string, int, error) {
+// ShardID returns the hex-encoded SHA-256 hash of the shard data.
+func ShardID(shard []byte) string {
+	hash := sha256.Sum256(shard)
+	return hex.EncodeToString(hash[:])
+}
+
+// EncryptAndShard compresses, encrypts, and shards data.
+// Returns a list of shards and the size of the ciphertext before sharding.
+func EncryptAndShard(plaintext []byte, key []byte) ([][]byte, int, error) {
 	ciphertext, err := compressAndEncrypt(plaintext, key)
 	if err != nil {
 		return nil, 0, err
@@ -119,10 +125,30 @@ func StoreShards(objectsDir string, plaintext []byte, key []byte) ([]string, int
 		return nil, 0, fmt.Errorf("failed to shard ciphertext: %w", err)
 	}
 
+	return shards, len(ciphertext), nil
+}
+
+// ReconstructAndDecrypt reconstructs, decrypts, and decompresses data from shards.
+func ReconstructAndDecrypt(shards [][]byte, key []byte, originalCiphertextSize int) ([]byte, error) {
+	ciphertext, err := ReconstructData(shards, originalCiphertextSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconstruct ciphertext: %w", err)
+	}
+
+	return decryptAndDecompress(ciphertext, key)
+}
+
+// StoreShards compresses, encrypts, and shards data using Reed-Solomon erasure coding.
+// Returns a list of shard IDs and the size of the ciphertext before sharding.
+func StoreShards(objectsDir string, plaintext []byte, key []byte) ([]string, int, error) {
+	shards, ciphertextSize, err := EncryptAndShard(plaintext, key)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	shardIDs := make([]string, len(shards))
 	for i, shard := range shards {
-		hash := sha256.Sum256(shard)
-		shardID := hex.EncodeToString(hash[:])
+		shardID := ShardID(shard)
 		shardIDs[i] = shardID
 
 		subDir := shardID[:2]
@@ -146,7 +172,7 @@ func StoreShards(objectsDir string, plaintext []byte, key []byte) ([]string, int
 		}
 	}
 
-	return shardIDs, len(ciphertext), nil
+	return shardIDs, ciphertextSize, nil
 }
 
 // RetrieveShards reconstructs, decrypts, and decompresses data from shards.
