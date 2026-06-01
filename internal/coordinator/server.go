@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
+	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 )
 
 type CoordinatorServer struct {
@@ -63,7 +65,12 @@ func (s *CoordinatorServer) GetMetadata(ctx context.Context, req *pb.GetMetadata
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return &pb.GetMetadataResponse{EncryptedDb: nil}, nil
+			// Return random noise if metadata does not exist (plausible deniability)
+			noise := make([]byte, metadata.MetadataBlobSize)
+			if _, err := rand.Read(noise); err != nil {
+				return nil, fmt.Errorf("failed to generate random noise: %w", err)
+			}
+			return &pb.GetMetadataResponse{EncryptedDb: noise}, nil
 		}
 		return nil, err
 	}
@@ -71,6 +78,10 @@ func (s *CoordinatorServer) GetMetadata(ctx context.Context, req *pb.GetMetadata
 }
 
 func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMetadataRequest) (*pb.UpdateMetadataResponse, error) {
+	if len(req.EncryptedDb) != metadata.MetadataBlobSize {
+		return nil, fmt.Errorf("invalid metadata blob size: expected %d, got %d", metadata.MetadataBlobSize, len(req.EncryptedDb))
+	}
+
 	path := filepath.Join(s.VaultDir, "metadata.enc")
 	if err := os.WriteFile(path, req.EncryptedDb, 0600); err != nil {
 		return nil, err

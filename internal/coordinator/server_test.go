@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
+	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 )
 
 func TestCoordinatorServer(t *testing.T) {
@@ -22,6 +23,15 @@ func TestCoordinatorServer(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
+	// Test GetMetadata returns noise when not initialized
+	getRes, err := server.GetMetadata(ctx, &pb.GetMetadataRequest{})
+	if err != nil {
+		t.Fatalf("GetMetadata failed: %v", err)
+	}
+	if len(getRes.EncryptedDb) != metadata.MetadataBlobSize {
+		t.Errorf("expected %d bytes of noise, got %d", metadata.MetadataBlobSize, len(getRes.EncryptedDb))
+	}
 
 	// Test RegisterNode
 	regReq := &pb.NodeInfo{
@@ -58,8 +68,10 @@ func TestCoordinatorServer(t *testing.T) {
 	}
 
 	// Test UpdateMetadata with shard locations
+	testBlob := make([]byte, metadata.MetadataBlobSize)
+	copy(testBlob, "test-data")
 	metaReq := &pb.UpdateMetadataRequest{
-		EncryptedDb: []byte("test-data"),
+		EncryptedDb: testBlob,
 		NewFileLocations: map[string]*pb.ShardLocations{
 			"file-1": {
 				ShardToNode: map[string]string{
@@ -74,6 +86,15 @@ func TestCoordinatorServer(t *testing.T) {
 	}
 	if !metaRes.Success {
 		t.Error("UpdateMetadata returned success=false")
+	}
+
+	// Test UpdateMetadata with invalid size
+	badReq := &pb.UpdateMetadataRequest{
+		EncryptedDb: []byte("too-small"),
+	}
+	_, err = server.UpdateMetadata(ctx, badReq)
+	if err == nil {
+		t.Error("expected error for small metadata blob, got nil")
 	}
 
 	// Test GetDownloadPlan

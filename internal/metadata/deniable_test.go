@@ -3,6 +3,9 @@ package metadata
 import (
 	"bytes"
 	"testing"
+
+	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
 func TestDeniablePackaging(t *testing.T) {
