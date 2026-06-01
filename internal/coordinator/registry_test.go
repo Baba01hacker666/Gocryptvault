@@ -27,4 +27,25 @@ func TestRegistry(t *testing.T) {
 	if len(healthy) != 0 {
 		t.Errorf("expected 0 healthy nodes, got %d", len(healthy))
 	}
+
+	// Test Shard Locations
+	shardMap := map[string]string{
+		"shard0": "node1",
+		"shard1": "node2",
+	}
+	r.SetShardLocations("file1", shardMap)
+
+	got := r.GetShardLocations("file1")
+	if len(got) != 2 {
+		t.Fatalf("expected 2 shard locations, got %d", len(got))
+	}
+	if got["shard0"] != "node1" || got["shard1"] != "node2" {
+		t.Errorf("unexpected shard mapping: %v", got)
+	}
+
+	// Test non-existent file
+	got = r.GetShardLocations("file2")
+	if len(got) != 0 {
+		t.Errorf("expected 0 locations for non-existent file, got %d", len(got))
+	}
 }

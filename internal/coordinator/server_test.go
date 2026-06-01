@@ -57,23 +57,35 @@ func TestCoordinatorServer(t *testing.T) {
 		t.Errorf("Unexpected upload assignments: %v", upRes.Assignments)
 	}
 
-	// Test GetDownloadPlan
-	downReq := &pb.DownloadPlanRequest{FileId: "file-1"}
-	downRes, err := server.GetDownloadPlan(ctx, downReq)
-	if err != nil {
-		t.Fatalf("GetDownloadPlan failed: %v", err)
+	// Test UpdateMetadata with shard locations
+	metaReq := &pb.UpdateMetadataRequest{
+		EncryptedDb: []byte("test-data"),
+		NewFileLocations: map[string]*pb.ShardLocations{
+			"file-1": {
+				ShardToNode: map[string]string{
+					"shard-0": "node-1",
+				},
+			},
+		},
 	}
-	if len(downRes.Locations) == 0 {
-		t.Error("GetDownloadPlan returned no locations")
-	}
-
-	// Test UpdateMetadata
-	metaReq := &pb.UpdateMetadataRequest{EncryptedDb: []byte("test-data")}
 	metaRes, err := server.UpdateMetadata(ctx, metaReq)
 	if err != nil {
 		t.Fatalf("UpdateMetadata failed: %v", err)
 	}
 	if !metaRes.Success {
 		t.Error("UpdateMetadata returned success=false")
+	}
+
+	// Test GetDownloadPlan
+	downReq := &pb.DownloadPlanRequest{FileId: "file-1"}
+	downRes, err := server.GetDownloadPlan(ctx, downReq)
+	if err != nil {
+		t.Fatalf("GetDownloadPlan failed: %v", err)
+	}
+	if len(downRes.Locations) != 1 {
+		t.Fatalf("expected 1 location, got %d", len(downRes.Locations))
+	}
+	if downRes.Locations["shard-0"] != "localhost:5001" {
+		t.Errorf("expected localhost:5001 for shard-0, got %s", downRes.Locations["shard-0"])
 	}
 }

@@ -14,12 +14,16 @@ type RegisteredNode struct {
 }
 
 type Registry struct {
-	mu    sync.RWMutex
-	nodes map[string]*RegisteredNode
+	mu             sync.RWMutex
+	nodes          map[string]*RegisteredNode
+	shardLocations map[string]map[string]string // fileID -> shardID -> nodeID
 }
 
 func NewRegistry() *Registry {
-	return &Registry{nodes: make(map[string]*RegisteredNode)}
+	return &Registry{
+		nodes:          make(map[string]*RegisteredNode),
+		shardLocations: make(map[string]map[string]string),
+	}
 }
 
 func (r *Registry) Register(id, endpoint string, capacity int64) {
@@ -46,4 +50,32 @@ func (r *Registry) GetHealthyNodes() []*RegisteredNode {
 		return healthy[i].ID < healthy[j].ID
 	})
 	return healthy
+}
+
+func (r *Registry) GetNode(id string) *RegisteredNode {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.nodes[id]
+}
+
+func (r *Registry) GetShardLocations(fileID string) map[string]string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	locs := make(map[string]string)
+	if mapping, ok := r.shardLocations[fileID]; ok {
+		for k, v := range mapping {
+			locs[k] = v
+		}
+	}
+	return locs
+}
+
+func (r *Registry) SetShardLocations(fileID string, mapping map[string]string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	m := make(map[string]string)
+	for k, v := range mapping {
+		m[k] = v
+	}
+	r.shardLocations[fileID] = m
 }

@@ -43,9 +43,14 @@ func (s *CoordinatorServer) GetUploadPlan(ctx context.Context, req *pb.UploadPla
 }
 
 func (s *CoordinatorServer) GetDownloadPlan(ctx context.Context, req *pb.DownloadPlanRequest) (*pb.DownloadPlanResponse, error) {
-	// In a real impl, we'd lookup which nodes HAVE the shards for fileID from s.Registry.
-	// For now, returning empty as proper tracking is in Task 2.
+	shardToNode := s.Registry.GetShardLocations(req.FileId)
 	locs := make(map[string]string)
+	for shardID, nodeID := range shardToNode {
+		node := s.Registry.GetNode(nodeID)
+		if node != nil {
+			locs[shardID] = node.Endpoint
+		}
+	}
 	return &pb.DownloadPlanResponse{Locations: locs}, nil
 }
 
@@ -66,5 +71,10 @@ func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMe
 	if err := os.WriteFile(path, req.EncryptedDb, 0600); err != nil {
 		return nil, err
 	}
+
+	for fileID, locations := range req.NewFileLocations {
+		s.Registry.SetShardLocations(fileID, locations.ShardToNode)
+	}
+
 	return &pb.UpdateMetadataResponse{Success: true}, nil
 }
