@@ -28,11 +28,47 @@ var (
 )
 
 type Vault struct {
-	BaseDir string
+	BaseDir      string
+	mu           sync.RWMutex
+	metaCache    *metadata.MetadataDB
+	cacheModTime time.Time
 }
 
 func NewVault(baseDir string) *Vault {
 	return &Vault{BaseDir: baseDir}
+}
+
+func (v *Vault) getMetadata() (*metadata.MetadataDB, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	sess, err := session.GetSession()
+	if err != nil {
+		return nil, err
+	}
+
+	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
+	info, err := os.Stat(metaPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			v.metaCache = metadata.NewMetadataDB()
+			return v.metaCache, nil
+		}
+		return nil, err
+	}
+
+	if v.metaCache != nil && info.ModTime().Equal(v.cacheModTime) {
+		return v.metaCache, nil
+	}
+
+	db, err := metadata.LoadEncryptedMetadata(metaPath, sess.GetMetaKey())
+	if err != nil {
+		return nil, err
+	}
+
+	v.metaCache = db
+	v.cacheModTime = info.ModTime()
+	return db, nil
 }
 
 func (v *Vault) Init(password []byte) error {
@@ -279,14 +315,26 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 		record.Chunks = []string{}
 	}
 
-	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
-	db, err := metadata.LoadEncryptedMetadata(metaPath, sess.GetMetaKey())
+	db, err := v.getMetadata()
 	if err != nil {
 		return err
 	}
 
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
 	db.Files[record.ID] = record
-	return metadata.SaveEncryptedMetadata(metaPath, db, sess.GetMetaKey())
+	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
+	if err := metadata.SaveEncryptedMetadata(metaPath, db, sess.GetMetaKey()); err != nil {
+		return err
+	}
+
+	// Update cache mod time
+	if info, err := os.Stat(metaPath); err == nil {
+		v.cacheModTime = info.ModTime()
+	}
+
+	return nil
 }
 
 func (v *Vault) ExportFile(fileID string, outPath string) error {
@@ -295,13 +343,14 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 		return err
 	}
 
-	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
-	db, err := metadata.LoadEncryptedMetadata(metaPath, sess.GetMetaKey())
+	db, err := v.getMetadata()
 	if err != nil {
 		return err
 	}
 
+	v.mu.RLock()
 	record, ok := db.Files[fileID]
+	v.mu.RUnlock()
 	if !ok {
 		return ErrFileNotFound
 	}
@@ -401,16 +450,13 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 }
 
 func (v *Vault) ListFiles() ([]*metadata.FileRecord, error) {
-	sess, err := session.GetSession()
+	db, err := v.getMetadata()
 	if err != nil {
 		return nil, err
 	}
 
-	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
-	db, err := metadata.LoadEncryptedMetadata(metaPath, sess.GetMetaKey())
-	if err != nil {
-		return nil, err
-	}
+	v.mu.RLock()
+	defer v.mu.RUnlock()
 
 	var files []*metadata.FileRecord
 	for _, f := range db.Files {
@@ -426,11 +472,13 @@ func (v *Vault) DeleteFile(fileID string) error {
 		return err
 	}
 
-	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
-	db, err := metadata.LoadEncryptedMetadata(metaPath, sess.GetMetaKey())
+	db, err := v.getMetadata()
 	if err != nil {
 		return err
 	}
+
+	v.mu.Lock()
+	defer v.mu.Unlock()
 
 	record, ok := db.Files[fileID]
 	if !ok {
@@ -443,7 +491,17 @@ func (v *Vault) DeleteFile(fileID string) error {
 	}
 
 	delete(db.Files, fileID)
-	return metadata.SaveEncryptedMetadata(metaPath, db, sess.GetMetaKey())
+	metaPath := filepath.Join(v.BaseDir, "metadata.enc")
+	if err := metadata.SaveEncryptedMetadata(metaPath, db, sess.GetMetaKey()); err != nil {
+		return err
+	}
+
+	// Update cache mod time
+	if info, err := os.Stat(metaPath); err == nil {
+		v.cacheModTime = info.ModTime()
+	}
+
+	return nil
 }
 
 func (v *Vault) ChangePassword(oldPass, newPass []byte) error {
