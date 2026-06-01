@@ -3,8 +3,24 @@ package daemon
 import (
 	"fmt"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 )
+
+func ListFilesRPC() ([]*metadata.FileRecord, error) {
+	client, err := ConnectRPC()
+	if err != nil {
+		return nil, err
+	}
+	defer client.Close()
+
+	var reply []*metadata.FileRecord
+	err = client.Call("VaultDaemon.ListFiles", &struct{}{}, &reply)
+	if err != nil {
+		return nil, err
+	}
+	return reply, nil
+}
 
 func EnsureLocalSession() error {
 	// Try local first
