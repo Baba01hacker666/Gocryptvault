@@ -25,6 +25,7 @@ const (
 	Coordinator_GetDownloadPlan_FullMethodName = "/v1.Coordinator/GetDownloadPlan"
 	Coordinator_GetMetadata_FullMethodName     = "/v1.Coordinator/GetMetadata"
 	Coordinator_UpdateMetadata_FullMethodName  = "/v1.Coordinator/UpdateMetadata"
+	Coordinator_DeleteMetadata_FullMethodName  = "/v1.Coordinator/DeleteMetadata"
 )
 
 // CoordinatorClient is the client API for Coordinator service.
@@ -37,6 +38,7 @@ type CoordinatorClient interface {
 	GetDownloadPlan(ctx context.Context, in *DownloadPlanRequest, opts ...grpc.CallOption) (*DownloadPlanResponse, error)
 	GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error)
 	UpdateMetadata(ctx context.Context, in *UpdateMetadataRequest, opts ...grpc.CallOption) (*UpdateMetadataResponse, error)
+	DeleteMetadata(ctx context.Context, in *DeleteMetadataRequest, opts ...grpc.CallOption) (*DeleteMetadataResponse, error)
 }
 
 type coordinatorClient struct {
@@ -107,6 +109,16 @@ func (c *coordinatorClient) UpdateMetadata(ctx context.Context, in *UpdateMetada
 	return out, nil
 }
 
+func (c *coordinatorClient) DeleteMetadata(ctx context.Context, in *DeleteMetadataRequest, opts ...grpc.CallOption) (*DeleteMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(DeleteMetadataResponse)
+	err := c.cc.Invoke(ctx, Coordinator_DeleteMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // CoordinatorServer is the server API for Coordinator service.
 // All implementations must embed UnimplementedCoordinatorServer
 // for forward compatibility.
@@ -117,6 +129,7 @@ type CoordinatorServer interface {
 	GetDownloadPlan(context.Context, *DownloadPlanRequest) (*DownloadPlanResponse, error)
 	GetMetadata(context.Context, *GetMetadataRequest) (*GetMetadataResponse, error)
 	UpdateMetadata(context.Context, *UpdateMetadataRequest) (*UpdateMetadataResponse, error)
+	DeleteMetadata(context.Context, *DeleteMetadataRequest) (*DeleteMetadataResponse, error)
 	mustEmbedUnimplementedCoordinatorServer()
 }
 
@@ -144,6 +157,9 @@ func (UnimplementedCoordinatorServer) GetMetadata(context.Context, *GetMetadataR
 }
 func (UnimplementedCoordinatorServer) UpdateMetadata(context.Context, *UpdateMetadataRequest) (*UpdateMetadataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateMetadata not implemented")
+}
+func (UnimplementedCoordinatorServer) DeleteMetadata(context.Context, *DeleteMetadataRequest) (*DeleteMetadataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method DeleteMetadata not implemented")
 }
 func (UnimplementedCoordinatorServer) mustEmbedUnimplementedCoordinatorServer() {}
 func (UnimplementedCoordinatorServer) testEmbeddedByValue()                     {}
@@ -274,6 +290,24 @@ func _Coordinator_UpdateMetadata_Handler(srv interface{}, ctx context.Context, d
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Coordinator_DeleteMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(DeleteMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoordinatorServer).DeleteMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Coordinator_DeleteMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoordinatorServer).DeleteMetadata(ctx, req.(*DeleteMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // Coordinator_ServiceDesc is the grpc.ServiceDesc for Coordinator service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -304,6 +338,10 @@ var Coordinator_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "UpdateMetadata",
 			Handler:    _Coordinator_UpdateMetadata_Handler,
+		},
+		{
+			MethodName: "DeleteMetadata",
+			Handler:    _Coordinator_DeleteMetadata_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

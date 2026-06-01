@@ -79,3 +79,9 @@ func (r *Registry) SetShardLocations(fileID string, mapping map[string]string) {
 	}
 	r.shardLocations[fileID] = m
 }
+
+func (r *Registry) DeleteShardLocations(fileID string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	delete(r.shardLocations, fileID)
+}

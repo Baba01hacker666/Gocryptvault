@@ -21,6 +21,94 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type DeleteMetadataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	FileId        string                 `protobuf:"bytes,1,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMetadataRequest) Reset() {
+	*x = DeleteMetadataRequest{}
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMetadataRequest) ProtoMessage() {}
+
+func (x *DeleteMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMetadataRequest.ProtoReflect.Descriptor instead.
+func (*DeleteMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{0}
+}
+
+func (x *DeleteMetadataRequest) GetFileId() string {
+	if x != nil {
+		return x.FileId
+	}
+	return ""
+}
+
+type DeleteMetadataResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Success       bool                   `protobuf:"varint,1,opt,name=success,proto3" json:"success,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteMetadataResponse) Reset() {
+	*x = DeleteMetadataResponse{}
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteMetadataResponse) ProtoMessage() {}
+
+func (x *DeleteMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteMetadataResponse.ProtoReflect.Descriptor instead.
+func (*DeleteMetadataResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *DeleteMetadataResponse) GetSuccess() bool {
+	if x != nil {
+		return x.Success
+	}
+	return false
+}
+
 type GetMetadataRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -29,7 +117,7 @@ type GetMetadataRequest struct {
 
 func (x *GetMetadataRequest) Reset() {
 	*x = GetMetadataRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -41,7 +129,7 @@ func (x *GetMetadataRequest) String() string {
 func (*GetMetadataRequest) ProtoMessage() {}
 
 func (x *GetMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -54,7 +142,7 @@ func (x *GetMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetadataRequest.ProtoReflect.Descriptor instead.
 func (*GetMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{0}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{2}
 }
 
 type GetMetadataResponse struct {
@@ -66,7 +154,7 @@ type GetMetadataResponse struct {
 
 func (x *GetMetadataResponse) Reset() {
 	*x = GetMetadataResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -78,7 +166,7 @@ func (x *GetMetadataResponse) String() string {
 func (*GetMetadataResponse) ProtoMessage() {}
 
 func (x *GetMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -91,7 +179,7 @@ func (x *GetMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetMetadataResponse.ProtoReflect.Descriptor instead.
 func (*GetMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{1}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *GetMetadataResponse) GetEncryptedDb() []byte {
@@ -112,7 +200,7 @@ type NodeInfo struct {
 
 func (x *NodeInfo) Reset() {
 	*x = NodeInfo{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -124,7 +212,7 @@ func (x *NodeInfo) String() string {
 func (*NodeInfo) ProtoMessage() {}
 
 func (x *NodeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -137,7 +225,7 @@ func (x *NodeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeInfo.ProtoReflect.Descriptor instead.
 func (*NodeInfo) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *NodeInfo) GetId() string {
@@ -170,7 +258,7 @@ type RegisterResponse struct {
 
 func (x *RegisterResponse) Reset() {
 	*x = RegisterResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -182,7 +270,7 @@ func (x *RegisterResponse) String() string {
 func (*RegisterResponse) ProtoMessage() {}
 
 func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -195,7 +283,7 @@ func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterResponse.ProtoReflect.Descriptor instead.
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *RegisterResponse) GetSuccess() bool {
@@ -214,7 +302,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -226,7 +314,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -239,7 +327,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{4}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *HeartbeatRequest) GetNodeId() string {
@@ -258,7 +346,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -270,7 +358,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -283,7 +371,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{5}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *HeartbeatResponse) GetAcknowledged() bool {
@@ -302,7 +390,7 @@ type UploadPlanRequest struct {
 
 func (x *UploadPlanRequest) Reset() {
 	*x = UploadPlanRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -314,7 +402,7 @@ func (x *UploadPlanRequest) String() string {
 func (*UploadPlanRequest) ProtoMessage() {}
 
 func (x *UploadPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -327,7 +415,7 @@ func (x *UploadPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadPlanRequest.ProtoReflect.Descriptor instead.
 func (*UploadPlanRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{6}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *UploadPlanRequest) GetShardCount() int32 {
@@ -346,7 +434,7 @@ type UploadPlanResponse struct {
 
 func (x *UploadPlanResponse) Reset() {
 	*x = UploadPlanResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -358,7 +446,7 @@ func (x *UploadPlanResponse) String() string {
 func (*UploadPlanResponse) ProtoMessage() {}
 
 func (x *UploadPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -371,7 +459,7 @@ func (x *UploadPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadPlanResponse.ProtoReflect.Descriptor instead.
 func (*UploadPlanResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{7}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *UploadPlanResponse) GetAssignments() map[int32]string {
@@ -390,7 +478,7 @@ type DownloadPlanRequest struct {
 
 func (x *DownloadPlanRequest) Reset() {
 	*x = DownloadPlanRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -402,7 +490,7 @@ func (x *DownloadPlanRequest) String() string {
 func (*DownloadPlanRequest) ProtoMessage() {}
 
 func (x *DownloadPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -415,7 +503,7 @@ func (x *DownloadPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPlanRequest.ProtoReflect.Descriptor instead.
 func (*DownloadPlanRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{8}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *DownloadPlanRequest) GetFileId() string {
@@ -434,7 +522,7 @@ type ShardLocations struct {
 
 func (x *ShardLocations) Reset() {
 	*x = ShardLocations{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +534,7 @@ func (x *ShardLocations) String() string {
 func (*ShardLocations) ProtoMessage() {}
 
 func (x *ShardLocations) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,7 +547,7 @@ func (x *ShardLocations) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ShardLocations.ProtoReflect.Descriptor instead.
 func (*ShardLocations) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{9}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *ShardLocations) GetShardToNode() map[string]string {
@@ -478,7 +566,7 @@ type DownloadPlanResponse struct {
 
 func (x *DownloadPlanResponse) Reset() {
 	*x = DownloadPlanResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +578,7 @@ func (x *DownloadPlanResponse) String() string {
 func (*DownloadPlanResponse) ProtoMessage() {}
 
 func (x *DownloadPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,7 +591,7 @@ func (x *DownloadPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPlanResponse.ProtoReflect.Descriptor instead.
 func (*DownloadPlanResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{10}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *DownloadPlanResponse) GetLocations() map[string]string {
@@ -523,7 +611,7 @@ type UpdateMetadataRequest struct {
 
 func (x *UpdateMetadataRequest) Reset() {
 	*x = UpdateMetadataRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -535,7 +623,7 @@ func (x *UpdateMetadataRequest) String() string {
 func (*UpdateMetadataRequest) ProtoMessage() {}
 
 func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -548,7 +636,7 @@ func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{11}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *UpdateMetadataRequest) GetEncryptedDb() []byte {
@@ -574,7 +662,7 @@ type UpdateMetadataResponse struct {
 
 func (x *UpdateMetadataResponse) Reset() {
 	*x = UpdateMetadataResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[12]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -586,7 +674,7 @@ func (x *UpdateMetadataResponse) String() string {
 func (*UpdateMetadataResponse) ProtoMessage() {}
 
 func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[12]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -599,7 +687,7 @@ func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{12}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *UpdateMetadataResponse) GetSuccess() bool {
@@ -613,7 +701,11 @@ var File_api_proto_v1_coordinator_proto protoreflect.FileDescriptor
 
 const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"\x1eapi/proto/v1/coordinator.proto\x12\x02v1\"\x14\n" +
+	"\x1eapi/proto/v1/coordinator.proto\x12\x02v1\"0\n" +
+	"\x15DeleteMetadataRequest\x12\x17\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\"2\n" +
+	"\x16DeleteMetadataResponse\x12\x18\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x14\n" +
 	"\x12GetMetadataRequest\"8\n" +
 	"\x13GetMetadataResponse\x12!\n" +
 	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\"]\n" +
@@ -654,14 +746,15 @@ const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
 	"\x05value\x18\x02 \x01(\v2\x12.v1.ShardLocationsR\x05value:\x028\x01\"2\n" +
 	"\x16UpdateMetadataResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\x8a\x03\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\xd3\x03\n" +
 	"\vCoordinator\x122\n" +
 	"\fRegisterNode\x12\f.v1.NodeInfo\x1a\x14.v1.RegisterResponse\x128\n" +
 	"\tHeartbeat\x12\x14.v1.HeartbeatRequest\x1a\x15.v1.HeartbeatResponse\x12>\n" +
 	"\rGetUploadPlan\x12\x15.v1.UploadPlanRequest\x1a\x16.v1.UploadPlanResponse\x12D\n" +
 	"\x0fGetDownloadPlan\x12\x17.v1.DownloadPlanRequest\x1a\x18.v1.DownloadPlanResponse\x12>\n" +
 	"\vGetMetadata\x12\x16.v1.GetMetadataRequest\x1a\x17.v1.GetMetadataResponse\x12G\n" +
-	"\x0eUpdateMetadata\x12\x19.v1.UpdateMetadataRequest\x1a\x1a.v1.UpdateMetadataResponseB6Z4github.com/Baba01hacker666/Gocryptvault/api/proto/v1b\x06proto3"
+	"\x0eUpdateMetadata\x12\x19.v1.UpdateMetadataRequest\x1a\x1a.v1.UpdateMetadataResponse\x12G\n" +
+	"\x0eDeleteMetadata\x12\x19.v1.DeleteMetadataRequest\x1a\x1a.v1.DeleteMetadataResponseB6Z4github.com/Baba01hacker666/Gocryptvault/api/proto/v1b\x06proto3"
 
 var (
 	file_api_proto_v1_coordinator_proto_rawDescOnce sync.Once
@@ -675,46 +768,50 @@ func file_api_proto_v1_coordinator_proto_rawDescGZIP() []byte {
 	return file_api_proto_v1_coordinator_proto_rawDescData
 }
 
-var file_api_proto_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_api_proto_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_api_proto_v1_coordinator_proto_goTypes = []any{
-	(*GetMetadataRequest)(nil),     // 0: v1.GetMetadataRequest
-	(*GetMetadataResponse)(nil),    // 1: v1.GetMetadataResponse
-	(*NodeInfo)(nil),               // 2: v1.NodeInfo
-	(*RegisterResponse)(nil),       // 3: v1.RegisterResponse
-	(*HeartbeatRequest)(nil),       // 4: v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),      // 5: v1.HeartbeatResponse
-	(*UploadPlanRequest)(nil),      // 6: v1.UploadPlanRequest
-	(*UploadPlanResponse)(nil),     // 7: v1.UploadPlanResponse
-	(*DownloadPlanRequest)(nil),    // 8: v1.DownloadPlanRequest
-	(*ShardLocations)(nil),         // 9: v1.ShardLocations
-	(*DownloadPlanResponse)(nil),   // 10: v1.DownloadPlanResponse
-	(*UpdateMetadataRequest)(nil),  // 11: v1.UpdateMetadataRequest
-	(*UpdateMetadataResponse)(nil), // 12: v1.UpdateMetadataResponse
-	nil,                            // 13: v1.UploadPlanResponse.AssignmentsEntry
-	nil,                            // 14: v1.ShardLocations.ShardToNodeEntry
-	nil,                            // 15: v1.DownloadPlanResponse.LocationsEntry
-	nil,                            // 16: v1.UpdateMetadataRequest.NewFileLocationsEntry
+	(*DeleteMetadataRequest)(nil),  // 0: v1.DeleteMetadataRequest
+	(*DeleteMetadataResponse)(nil), // 1: v1.DeleteMetadataResponse
+	(*GetMetadataRequest)(nil),     // 2: v1.GetMetadataRequest
+	(*GetMetadataResponse)(nil),    // 3: v1.GetMetadataResponse
+	(*NodeInfo)(nil),               // 4: v1.NodeInfo
+	(*RegisterResponse)(nil),       // 5: v1.RegisterResponse
+	(*HeartbeatRequest)(nil),       // 6: v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),      // 7: v1.HeartbeatResponse
+	(*UploadPlanRequest)(nil),      // 8: v1.UploadPlanRequest
+	(*UploadPlanResponse)(nil),     // 9: v1.UploadPlanResponse
+	(*DownloadPlanRequest)(nil),    // 10: v1.DownloadPlanRequest
+	(*ShardLocations)(nil),         // 11: v1.ShardLocations
+	(*DownloadPlanResponse)(nil),   // 12: v1.DownloadPlanResponse
+	(*UpdateMetadataRequest)(nil),  // 13: v1.UpdateMetadataRequest
+	(*UpdateMetadataResponse)(nil), // 14: v1.UpdateMetadataResponse
+	nil,                            // 15: v1.UploadPlanResponse.AssignmentsEntry
+	nil,                            // 16: v1.ShardLocations.ShardToNodeEntry
+	nil,                            // 17: v1.DownloadPlanResponse.LocationsEntry
+	nil,                            // 18: v1.UpdateMetadataRequest.NewFileLocationsEntry
 }
 var file_api_proto_v1_coordinator_proto_depIdxs = []int32{
-	13, // 0: v1.UploadPlanResponse.assignments:type_name -> v1.UploadPlanResponse.AssignmentsEntry
-	14, // 1: v1.ShardLocations.shard_to_node:type_name -> v1.ShardLocations.ShardToNodeEntry
-	15, // 2: v1.DownloadPlanResponse.locations:type_name -> v1.DownloadPlanResponse.LocationsEntry
-	16, // 3: v1.UpdateMetadataRequest.new_file_locations:type_name -> v1.UpdateMetadataRequest.NewFileLocationsEntry
-	9,  // 4: v1.UpdateMetadataRequest.NewFileLocationsEntry.value:type_name -> v1.ShardLocations
-	2,  // 5: v1.Coordinator.RegisterNode:input_type -> v1.NodeInfo
-	4,  // 6: v1.Coordinator.Heartbeat:input_type -> v1.HeartbeatRequest
-	6,  // 7: v1.Coordinator.GetUploadPlan:input_type -> v1.UploadPlanRequest
-	8,  // 8: v1.Coordinator.GetDownloadPlan:input_type -> v1.DownloadPlanRequest
-	0,  // 9: v1.Coordinator.GetMetadata:input_type -> v1.GetMetadataRequest
-	11, // 10: v1.Coordinator.UpdateMetadata:input_type -> v1.UpdateMetadataRequest
-	3,  // 11: v1.Coordinator.RegisterNode:output_type -> v1.RegisterResponse
-	5,  // 12: v1.Coordinator.Heartbeat:output_type -> v1.HeartbeatResponse
-	7,  // 13: v1.Coordinator.GetUploadPlan:output_type -> v1.UploadPlanResponse
-	10, // 14: v1.Coordinator.GetDownloadPlan:output_type -> v1.DownloadPlanResponse
-	1,  // 15: v1.Coordinator.GetMetadata:output_type -> v1.GetMetadataResponse
-	12, // 16: v1.Coordinator.UpdateMetadata:output_type -> v1.UpdateMetadataResponse
-	11, // [11:17] is the sub-list for method output_type
-	5,  // [5:11] is the sub-list for method input_type
+	15, // 0: v1.UploadPlanResponse.assignments:type_name -> v1.UploadPlanResponse.AssignmentsEntry
+	16, // 1: v1.ShardLocations.shard_to_node:type_name -> v1.ShardLocations.ShardToNodeEntry
+	17, // 2: v1.DownloadPlanResponse.locations:type_name -> v1.DownloadPlanResponse.LocationsEntry
+	18, // 3: v1.UpdateMetadataRequest.new_file_locations:type_name -> v1.UpdateMetadataRequest.NewFileLocationsEntry
+	11, // 4: v1.UpdateMetadataRequest.NewFileLocationsEntry.value:type_name -> v1.ShardLocations
+	4,  // 5: v1.Coordinator.RegisterNode:input_type -> v1.NodeInfo
+	6,  // 6: v1.Coordinator.Heartbeat:input_type -> v1.HeartbeatRequest
+	8,  // 7: v1.Coordinator.GetUploadPlan:input_type -> v1.UploadPlanRequest
+	10, // 8: v1.Coordinator.GetDownloadPlan:input_type -> v1.DownloadPlanRequest
+	2,  // 9: v1.Coordinator.GetMetadata:input_type -> v1.GetMetadataRequest
+	13, // 10: v1.Coordinator.UpdateMetadata:input_type -> v1.UpdateMetadataRequest
+	0,  // 11: v1.Coordinator.DeleteMetadata:input_type -> v1.DeleteMetadataRequest
+	5,  // 12: v1.Coordinator.RegisterNode:output_type -> v1.RegisterResponse
+	7,  // 13: v1.Coordinator.Heartbeat:output_type -> v1.HeartbeatResponse
+	9,  // 14: v1.Coordinator.GetUploadPlan:output_type -> v1.UploadPlanResponse
+	12, // 15: v1.Coordinator.GetDownloadPlan:output_type -> v1.DownloadPlanResponse
+	3,  // 16: v1.Coordinator.GetMetadata:output_type -> v1.GetMetadataResponse
+	14, // 17: v1.Coordinator.UpdateMetadata:output_type -> v1.UpdateMetadataResponse
+	1,  // 18: v1.Coordinator.DeleteMetadata:output_type -> v1.DeleteMetadataResponse
+	12, // [12:19] is the sub-list for method output_type
+	5,  // [5:12] is the sub-list for method input_type
 	5,  // [5:5] is the sub-list for extension type_name
 	5,  // [5:5] is the sub-list for extension extendee
 	0,  // [0:5] is the sub-list for field type_name
@@ -731,7 +828,7 @@ func file_api_proto_v1_coordinator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_v1_coordinator_proto_rawDesc), len(file_api_proto_v1_coordinator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

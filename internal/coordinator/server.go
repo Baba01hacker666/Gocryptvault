@@ -88,6 +88,14 @@ func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMe
 	return &pb.UpdateMetadataResponse{Success: true}, nil
 }
 
+func (s *CoordinatorServer) DeleteMetadata(ctx context.Context, req *pb.DeleteMetadataRequest) (*pb.DeleteMetadataResponse, error) {
+	s.Registry.DeleteShardLocations(req.FileId)
+	if err := s.SaveState(); err != nil {
+		return nil, err
+	}
+	return &pb.DeleteMetadataResponse{Success: true}, nil
+}
+
 func (s *CoordinatorServer) SaveState() error {
 	path := filepath.Join(s.VaultDir, "shards.json")
 	s.Registry.mu.RLock()

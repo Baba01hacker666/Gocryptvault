@@ -379,6 +379,85 @@ func (c *Client) downloadShard(endpoint, shardID string, tlsConfig *tls.Config) 
 	return data, nil
 }
 
+func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tlsConfig *tls.Config) error {
+	// 1. Ensure session
+	sess, err := session.GetSession()
+	if err != nil {
+		if err := c.ensureSession(); err != nil {
+			return err
+		}
+		sess, _ = session.GetSession()
+	}
+
+	// 2. Connect to Coordinator
+	conn, err := grpc.Dial(coordinatorAddr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	coordinator := pb.NewCoordinatorClient(conn)
+
+	// 3. Get Download Plan to find shard locations
+	plan, err := coordinator.GetDownloadPlan(context.Background(), &pb.DownloadPlanRequest{FileId: fileID})
+	if err != nil {
+		return err
+	}
+
+	// 4. Delete shards from nodes
+	limit := make(chan struct{}, 4)
+	var wg sync.WaitGroup
+	for sID, endpoint := range plan.Locations {
+		wg.Add(1)
+		go func(id string, addr string) {
+			defer wg.Done()
+			limit <- struct{}{}
+			defer func() { <-limit }()
+
+			_ = c.deleteShard(addr, id, tlsConfig) // Ignore individual shard deletion errors for now
+		}(sID, endpoint)
+	}
+	wg.Wait()
+
+	// 5. Update Metadata (remove file record)
+	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	if err == nil && mResp.EncryptedDb != nil {
+		db, err := metadata.DecryptMetadata(mResp.EncryptedDb, sess.GetMetaKey())
+		if err == nil {
+			if _, exists := db.Files[fileID]; exists {
+				delete(db.Files, fileID)
+				encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
+				if err == nil {
+					_, _ = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
+						EncryptedDb: encryptedDB,
+					})
+				}
+			}
+		}
+	}
+
+	// 6. Call Coordinator.DeleteMetadata to remove tracking
+	_, err = coordinator.DeleteMetadata(context.Background(), &pb.DeleteMetadataRequest{FileId: fileID})
+	return err
+}
+
+func (c *Client) deleteShard(endpoint, shardID string, tlsConfig *tls.Config) error {
+	conn, err := grpc.Dial(endpoint, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+
+	client := pb.NewStorageNodeClient(conn)
+	res, err := client.DeleteShard(context.Background(), &pb.ShardRequest{ShardId: shardID})
+	if err != nil {
+		return err
+	}
+	if !res.Success {
+		return fmt.Errorf("storage node reported failure")
+	}
+	return nil
+}
+
 func (c *Client) ensureSession() error {
 	// Re-use logic from daemon.EnsureLocalSession but call it here
 	// This might need daemon package imports

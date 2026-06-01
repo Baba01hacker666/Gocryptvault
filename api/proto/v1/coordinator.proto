@@ -9,7 +9,11 @@ service Coordinator {
     rpc GetDownloadPlan(DownloadPlanRequest) returns (DownloadPlanResponse);
     rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
     rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
+    rpc DeleteMetadata(DeleteMetadataRequest) returns (DeleteMetadataResponse);
 }
+
+message DeleteMetadataRequest { string file_id = 1; }
+message DeleteMetadataResponse { bool success = 1; }
 
 message GetMetadataRequest {}
 message GetMetadataResponse { bytes encrypted_db = 1; }
