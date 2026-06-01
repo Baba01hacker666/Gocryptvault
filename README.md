@@ -1,48 +1,82 @@
-# vaultfs
+# Gocryptvault
 
-A production-grade encrypted file vault system in Go.
+A production-grade, distributed, and deniable encrypted file vault system written in Go.
 
 ## Features
 
-- **Encrypted at Rest:** All files are stored encrypted on disk.
-- **Strong Cryptography:** Uses Argon2id for key derivation and XChaCha20-Poly1305 for AEAD.
-- **Zero Plaintext:** Filenames and metadata are encrypted; file contents are split into chunks, encrypted, and stored via SHA-256 identifiers.
-- **Secure Memory:** Uses `mlock` and secure wiping of sensitive memory segments.
+- **Encrypted at Rest:** All files, filenames, and metadata are stored fully encrypted using XChaCha20-Poly1305.
+- **Strong Cryptography:** Uses Argon2id for key derivation.
+- **Zero Plaintext:** File contents are split into chunks, encrypted, and stored via SHA-256 identifiers.
+- **Secure Memory:** Uses `mlock`, disables core dumps, and employs secure wiping of sensitive memory segments to prevent key leakage.
+- **Background Daemon:** Runs as a secure background daemon (`gocryptvault daemon`) communicating via UNIX sockets.
+- **FUSE Mount:** Mount the vault as a virtual filesystem (`gocryptvault mount`) to interact with your encrypted files natively.
+- **Distributed Storage:** Run a central Coordinator and multiple Storage Nodes to distribute file shards across a network via gRPC.
+- **Fault Tolerance:** Uses Reed-Solomon Erasure Coding (4 Data + 2 Parity) allowing data recovery even if 2 out of 6 storage nodes fail.
+- **Zero-Trust Network:** All distributed communication is strictly authenticated and encrypted via mutual TLS (mTLS).
+- **Deniable Vault:** Mathematically unprovable hidden vaults concealed within the random padding of a fixed-size metadata blob.
+- **Public Client Library:** Exported `pkg/client` allowing developers to seamlessly integrate Gocryptvault's capabilities into their own Go applications.
 
 ## Build
 
 ```sh
-CGO_ENABLED=0 go build -ldflags="-s -w" -o vaultfs main.go
+# Requires Go
+go build -o gocryptvault .
 ```
 
-## Usage
+## Quick Start (Local Mode)
 
 ```sh
 # Initialize the vault
-vaultfs init
+./gocryptvault init
 
-# Unlock the vault (prompts for password and derives in-memory session keys)
-vaultfs unlock
+# Unlock and start the background daemon
+./gocryptvault unlock
 
 # Add a file
-vaultfs add secret.pdf
+./gocryptvault add secret.txt
 
 # List files
-vaultfs list
+./gocryptvault list
 
 # Export a file
-vaultfs export <file_id> ./output/
+./gocryptvault export <file_id> ./output/
 
-# Delete a file
-vaultfs delete <file_id>
+# Mount via FUSE (Linux/macOS)
+./gocryptvault mount ./my-mountpoint
 
-# Lock the vault (wipes memory keys)
-vaultfs lock
-
-# Change master password
-vaultfs change-password
+# Lock the vault (wipes memory keys and stops daemon)
+./gocryptvault lock
 ```
 
-## Security
+## Distributed Mode
 
-Please note that you should mount or run `vaultfs unlock` before performing add/list/export commands within the current process lifetime (or adapt for daemon/fuse scenarios). Memory lock limits (ulimit) must be sufficient for `mlock` to work without dropping privileges.
+Gocryptvault can distribute file shards across multiple servers for high availability.
+
+1. **Start Coordinator:**
+   ```sh
+   ./gocryptvault coordinator --addr 0.0.0.0:50051 --ca ca.crt --cert server.crt --key server.key
+   ```
+2. **Start Storage Nodes:**
+   ```sh
+   ./gocryptvault node --addr 0.0.0.0:50052 --data-dir ./node1 --register --coordinator 127.0.0.1:50051 --id node-1 --ca ca.crt --cert node.crt --key node.key
+   ```
+3. **Use Distributed CLI:**
+   ```sh
+   ./gocryptvault add secret.txt --distributed --coordinator 127.0.0.1:50051 --ca ca.crt --cert client.crt --key client.key
+   ```
+
+## Deniable Vault
+
+Protect your most sensitive data under duress.
+
+```sh
+# Add data to the hidden vault
+./gocryptvault add top-secret.txt --distributed --hidden --hidden-password "my-secret-pass"
+
+# List only hidden files
+./gocryptvault list --distributed --hidden --hidden-password "my-secret-pass"
+```
+
+## Security Limits
+
+Please note that memory lock limits (`ulimit -l`) must be sufficient for `mlock` to work without dropping privileges.
