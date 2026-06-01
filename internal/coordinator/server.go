@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -79,5 +80,40 @@ func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMe
 		s.Registry.SetShardLocations(fileID, locations.ShardToNode)
 	}
 
+	// Persist shard locations
+	if err := s.SaveState(); err != nil {
+		return nil, err
+	}
+
 	return &pb.UpdateMetadataResponse{Success: true}, nil
+}
+
+func (s *CoordinatorServer) SaveState() error {
+	path := filepath.Join(s.VaultDir, "shards.json")
+	s.Registry.mu.RLock()
+	defer s.Registry.mu.RUnlock()
+	data, err := json.Marshal(s.Registry.shardLocations)
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
+}
+
+func (s *CoordinatorServer) LoadState() error {
+	path := filepath.Join(s.VaultDir, "shards.json")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	var locations map[string]map[string]string
+	if err := json.Unmarshal(data, &locations); err != nil {
+		return err
+	}
+	s.Registry.mu.Lock()
+	defer s.Registry.mu.Unlock()
+	s.Registry.shardLocations = locations
+	return nil
 }

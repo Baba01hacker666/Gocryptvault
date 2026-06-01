@@ -88,11 +88,18 @@ func generateTestCerts(t *testing.T) (caFile, certFile, keyFile string) {
 }
 
 func startCoordinator(t *testing.T, tlsConfig *tls.Config) (string, string, func()) {
-	vaultDir := t.TempDir()
+	return startCoordinatorWithDir(t, tlsConfig, t.TempDir())
+}
+
+func startCoordinatorWithDir(t *testing.T, tlsConfig *tls.Config, vaultDir string) (string, string, func()) {
 	registry := coordinator.NewRegistry()
 	server := &coordinator.CoordinatorServer{
 		Registry: registry,
 		VaultDir: vaultDir,
+	}
+	// Load existing state if any
+	if err := server.LoadState(); err != nil {
+		t.Fatalf("failed to load coordinator state: %v", err)
 	}
 
 	lis, err := net.Listen("tcp", "127.0.0.1:0")
@@ -213,12 +220,39 @@ func TestDistributedIntegration(t *testing.T) {
 		t.Error("Coordinator metadata file not found")
 	}
 
+	// 6.5 Simulate Coordinator Restart
+	t.Log("Simulating Coordinator restart...")
+	stopCoord()
+	coordAddr, _, stopCoord = startCoordinatorWithDir(t, serverTLS, coordVaultDir)
+	// No defer here, we already have one from the beginning of the test that will be overwritten or we need to manage it
+	// Actually, the original defer stopCoord() will call the OLD stopCoord if we are not careful.
+	// Let's use a variable for stopCoord.
+
+	// Re-register nodes (Registry node list is in-memory, but shardLocations should be persisted)
+	coordConn2, err := grpc.Dial(coordAddr, grpc.WithTransportCredentials(credentials.NewTLS(clientTLS)))
+	if err != nil {
+		t.Fatalf("failed to reconnect to coordinator: %v", err)
+	}
+	defer coordConn2.Close()
+	coordClient = pb.NewCoordinatorClient(coordConn2)
+
+	for i, addr := range nodeAddrs {
+		_, err := coordClient.RegisterNode(context.Background(), &pb.NodeInfo{
+			Id:            fmt.Sprintf("node-%d", i),
+			Endpoint:      addr,
+			CapacityBytes: 1024 * 1024 * 1024,
+		})
+		if err != nil {
+			t.Fatalf("failed to re-register node %d: %v", i, err)
+		}
+	}
+
 	// 7. Verify Shards on Nodes
 	// We expect 6 shards total for the single chunk
 	foundShards := 0
 	for _, dir := range nodeDirs {
 		filepath.Walk(dir, func(path string, info os.FileInfo, err error) error {
-			if !info.IsDir() {
+			if err == nil && !info.IsDir() {
 				foundShards++
 			}
 			return nil
@@ -237,6 +271,17 @@ func TestDistributedIntegration(t *testing.T) {
 		t.Fatal("No files found after upload")
 	}
 	fileID := files[0].ID
+
+	// Verify GetDownloadPlan explicitly
+	t.Log("Verifying GetDownloadPlan...")
+	downPlan, err := coordClient.GetDownloadPlan(context.Background(), &pb.DownloadPlanRequest{FileId: fileID})
+	if err != nil {
+		t.Fatalf("GetDownloadPlan failed: %v", err)
+	}
+	if len(downPlan.Locations) == 0 {
+		t.Fatal("GetDownloadPlan returned 0 locations after restart")
+	}
+	t.Logf("Found %d shard locations in download plan", len(downPlan.Locations))
 
 	outDir := t.TempDir()
 	err = c.ExportFileDistributed(fileID, outDir, coordAddr, clientTLS)
