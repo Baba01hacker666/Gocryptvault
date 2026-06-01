@@ -194,8 +194,12 @@ func (fh *FileHandle) Read(ctx context.Context, dest []byte, off int64) (fuse.Re
 		if i >= int64(len(record.Chunks)) {
 			break
 		}
-		chunkID := record.Chunks[i]
-		plaintext, err := objects.RetrieveChunk(objectsDir, chunkID, masterKey, record.Compressed)
+		chunk := record.Chunks[i]
+		shardIDs := make([]string, len(chunk.Shards))
+		for j, s := range chunk.Shards {
+			shardIDs[j] = s.ShardID
+		}
+		plaintext, err := objects.RetrieveShards(objectsDir, shardIDs, masterKey, chunk.Size)
 		if err != nil {
 			return nil, syscall.EIO
 		}

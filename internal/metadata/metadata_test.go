@@ -40,7 +40,10 @@ func TestSaveAndLoadEncryptedMetadata(t *testing.T) {
 		ID:       "file1",
 		Filename: "test.txt",
 		Size:     100,
-		Chunks:   []string{"chunk1", "chunk2"},
+		Chunks: []types.ChunkInfo{
+			{Index: 0, Size: 50, Shards: []types.ShardInfo{{Index: 0, ShardID: "shard1", NodeID: "local"}}},
+			{Index: 1, Size: 50, Shards: []types.ShardInfo{{Index: 0, ShardID: "shard2", NodeID: "local"}}},
+		},
 	}
 
 	err = SaveEncryptedMetadata(metaPath, db, key)

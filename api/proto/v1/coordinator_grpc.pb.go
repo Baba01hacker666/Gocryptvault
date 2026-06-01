@@ -23,6 +23,7 @@ const (
 	Coordinator_Heartbeat_FullMethodName       = "/v1.Coordinator/Heartbeat"
 	Coordinator_GetUploadPlan_FullMethodName   = "/v1.Coordinator/GetUploadPlan"
 	Coordinator_GetDownloadPlan_FullMethodName = "/v1.Coordinator/GetDownloadPlan"
+	Coordinator_GetMetadata_FullMethodName     = "/v1.Coordinator/GetMetadata"
 	Coordinator_UpdateMetadata_FullMethodName  = "/v1.Coordinator/UpdateMetadata"
 )
 
@@ -34,6 +35,7 @@ type CoordinatorClient interface {
 	Heartbeat(ctx context.Context, in *HeartbeatRequest, opts ...grpc.CallOption) (*HeartbeatResponse, error)
 	GetUploadPlan(ctx context.Context, in *UploadPlanRequest, opts ...grpc.CallOption) (*UploadPlanResponse, error)
 	GetDownloadPlan(ctx context.Context, in *DownloadPlanRequest, opts ...grpc.CallOption) (*DownloadPlanResponse, error)
+	GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error)
 	UpdateMetadata(ctx context.Context, in *UpdateMetadataRequest, opts ...grpc.CallOption) (*UpdateMetadataResponse, error)
 }
 
@@ -85,6 +87,16 @@ func (c *coordinatorClient) GetDownloadPlan(ctx context.Context, in *DownloadPla
 	return out, nil
 }
 
+func (c *coordinatorClient) GetMetadata(ctx context.Context, in *GetMetadataRequest, opts ...grpc.CallOption) (*GetMetadataResponse, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(GetMetadataResponse)
+	err := c.cc.Invoke(ctx, Coordinator_GetMetadata_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 func (c *coordinatorClient) UpdateMetadata(ctx context.Context, in *UpdateMetadataRequest, opts ...grpc.CallOption) (*UpdateMetadataResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
 	out := new(UpdateMetadataResponse)
@@ -103,6 +115,7 @@ type CoordinatorServer interface {
 	Heartbeat(context.Context, *HeartbeatRequest) (*HeartbeatResponse, error)
 	GetUploadPlan(context.Context, *UploadPlanRequest) (*UploadPlanResponse, error)
 	GetDownloadPlan(context.Context, *DownloadPlanRequest) (*DownloadPlanResponse, error)
+	GetMetadata(context.Context, *GetMetadataRequest) (*GetMetadataResponse, error)
 	UpdateMetadata(context.Context, *UpdateMetadataRequest) (*UpdateMetadataResponse, error)
 	mustEmbedUnimplementedCoordinatorServer()
 }
@@ -125,6 +138,9 @@ func (UnimplementedCoordinatorServer) GetUploadPlan(context.Context, *UploadPlan
 }
 func (UnimplementedCoordinatorServer) GetDownloadPlan(context.Context, *DownloadPlanRequest) (*DownloadPlanResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method GetDownloadPlan not implemented")
+}
+func (UnimplementedCoordinatorServer) GetMetadata(context.Context, *GetMetadataRequest) (*GetMetadataResponse, error) {
+	return nil, status.Error(codes.Unimplemented, "method GetMetadata not implemented")
 }
 func (UnimplementedCoordinatorServer) UpdateMetadata(context.Context, *UpdateMetadataRequest) (*UpdateMetadataResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method UpdateMetadata not implemented")
@@ -222,6 +238,24 @@ func _Coordinator_GetDownloadPlan_Handler(srv interface{}, ctx context.Context, 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _Coordinator_GetMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetMetadataRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(CoordinatorServer).GetMetadata(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: Coordinator_GetMetadata_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(CoordinatorServer).GetMetadata(ctx, req.(*GetMetadataRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 func _Coordinator_UpdateMetadata_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(UpdateMetadataRequest)
 	if err := dec(in); err != nil {
@@ -262,6 +296,10 @@ var Coordinator_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetDownloadPlan",
 			Handler:    _Coordinator_GetDownloadPlan_Handler,
+		},
+		{
+			MethodName: "GetMetadata",
+			Handler:    _Coordinator_GetMetadata_Handler,
 		},
 		{
 			MethodName: "UpdateMetadata",

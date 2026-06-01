@@ -21,6 +21,86 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type GetMetadataRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMetadataRequest) Reset() {
+	*x = GetMetadataRequest{}
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMetadataRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMetadataRequest) ProtoMessage() {}
+
+func (x *GetMetadataRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMetadataRequest.ProtoReflect.Descriptor instead.
+func (*GetMetadataRequest) Descriptor() ([]byte, []int) {
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{0}
+}
+
+type GetMetadataResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EncryptedDb   []byte                 `protobuf:"bytes,1,opt,name=encrypted_db,json=encryptedDb,proto3" json:"encrypted_db,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetMetadataResponse) Reset() {
+	*x = GetMetadataResponse{}
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetMetadataResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetMetadataResponse) ProtoMessage() {}
+
+func (x *GetMetadataResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetMetadataResponse.ProtoReflect.Descriptor instead.
+func (*GetMetadataResponse) Descriptor() ([]byte, []int) {
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *GetMetadataResponse) GetEncryptedDb() []byte {
+	if x != nil {
+		return x.EncryptedDb
+	}
+	return nil
+}
+
 type NodeInfo struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
@@ -32,7 +112,7 @@ type NodeInfo struct {
 
 func (x *NodeInfo) Reset() {
 	*x = NodeInfo{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -44,7 +124,7 @@ func (x *NodeInfo) String() string {
 func (*NodeInfo) ProtoMessage() {}
 
 func (x *NodeInfo) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[0]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -57,7 +137,7 @@ func (x *NodeInfo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NodeInfo.ProtoReflect.Descriptor instead.
 func (*NodeInfo) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{0}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *NodeInfo) GetId() string {
@@ -90,7 +170,7 @@ type RegisterResponse struct {
 
 func (x *RegisterResponse) Reset() {
 	*x = RegisterResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -102,7 +182,7 @@ func (x *RegisterResponse) String() string {
 func (*RegisterResponse) ProtoMessage() {}
 
 func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[1]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -115,7 +195,7 @@ func (x *RegisterResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RegisterResponse.ProtoReflect.Descriptor instead.
 func (*RegisterResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{1}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *RegisterResponse) GetSuccess() bool {
@@ -134,7 +214,7 @@ type HeartbeatRequest struct {
 
 func (x *HeartbeatRequest) Reset() {
 	*x = HeartbeatRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -146,7 +226,7 @@ func (x *HeartbeatRequest) String() string {
 func (*HeartbeatRequest) ProtoMessage() {}
 
 func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[2]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -159,7 +239,7 @@ func (x *HeartbeatRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatRequest.ProtoReflect.Descriptor instead.
 func (*HeartbeatRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{2}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *HeartbeatRequest) GetNodeId() string {
@@ -178,7 +258,7 @@ type HeartbeatResponse struct {
 
 func (x *HeartbeatResponse) Reset() {
 	*x = HeartbeatResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -190,7 +270,7 @@ func (x *HeartbeatResponse) String() string {
 func (*HeartbeatResponse) ProtoMessage() {}
 
 func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[3]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -203,7 +283,7 @@ func (x *HeartbeatResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use HeartbeatResponse.ProtoReflect.Descriptor instead.
 func (*HeartbeatResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{3}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *HeartbeatResponse) GetAcknowledged() bool {
@@ -222,7 +302,7 @@ type UploadPlanRequest struct {
 
 func (x *UploadPlanRequest) Reset() {
 	*x = UploadPlanRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -234,7 +314,7 @@ func (x *UploadPlanRequest) String() string {
 func (*UploadPlanRequest) ProtoMessage() {}
 
 func (x *UploadPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[4]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -247,7 +327,7 @@ func (x *UploadPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadPlanRequest.ProtoReflect.Descriptor instead.
 func (*UploadPlanRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{4}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *UploadPlanRequest) GetShardCount() int32 {
@@ -266,7 +346,7 @@ type UploadPlanResponse struct {
 
 func (x *UploadPlanResponse) Reset() {
 	*x = UploadPlanResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -278,7 +358,7 @@ func (x *UploadPlanResponse) String() string {
 func (*UploadPlanResponse) ProtoMessage() {}
 
 func (x *UploadPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[5]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -291,7 +371,7 @@ func (x *UploadPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UploadPlanResponse.ProtoReflect.Descriptor instead.
 func (*UploadPlanResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{5}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *UploadPlanResponse) GetAssignments() map[int32]string {
@@ -310,7 +390,7 @@ type DownloadPlanRequest struct {
 
 func (x *DownloadPlanRequest) Reset() {
 	*x = DownloadPlanRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -322,7 +402,7 @@ func (x *DownloadPlanRequest) String() string {
 func (*DownloadPlanRequest) ProtoMessage() {}
 
 func (x *DownloadPlanRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[6]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -335,7 +415,7 @@ func (x *DownloadPlanRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPlanRequest.ProtoReflect.Descriptor instead.
 func (*DownloadPlanRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{6}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *DownloadPlanRequest) GetFileId() string {
@@ -354,7 +434,7 @@ type DownloadPlanResponse struct {
 
 func (x *DownloadPlanResponse) Reset() {
 	*x = DownloadPlanResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -366,7 +446,7 @@ func (x *DownloadPlanResponse) String() string {
 func (*DownloadPlanResponse) ProtoMessage() {}
 
 func (x *DownloadPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[7]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -379,7 +459,7 @@ func (x *DownloadPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPlanResponse.ProtoReflect.Descriptor instead.
 func (*DownloadPlanResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{7}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *DownloadPlanResponse) GetLocations() map[int32]string {
@@ -398,7 +478,7 @@ type UpdateMetadataRequest struct {
 
 func (x *UpdateMetadataRequest) Reset() {
 	*x = UpdateMetadataRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -410,7 +490,7 @@ func (x *UpdateMetadataRequest) String() string {
 func (*UpdateMetadataRequest) ProtoMessage() {}
 
 func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[8]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -423,7 +503,7 @@ func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{8}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *UpdateMetadataRequest) GetEncryptedDb() []byte {
@@ -442,7 +522,7 @@ type UpdateMetadataResponse struct {
 
 func (x *UpdateMetadataResponse) Reset() {
 	*x = UpdateMetadataResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -454,7 +534,7 @@ func (x *UpdateMetadataResponse) String() string {
 func (*UpdateMetadataResponse) ProtoMessage() {}
 
 func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -467,7 +547,7 @@ func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{9}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateMetadataResponse) GetSuccess() bool {
@@ -481,7 +561,10 @@ var File_api_proto_v1_coordinator_proto protoreflect.FileDescriptor
 
 const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\n" +
-	"\x1eapi/proto/v1/coordinator.proto\x12\x02v1\"]\n" +
+	"\x1eapi/proto/v1/coordinator.proto\x12\x02v1\"\x14\n" +
+	"\x12GetMetadataRequest\"8\n" +
+	"\x13GetMetadataResponse\x12!\n" +
+	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\"]\n" +
 	"\bNodeInfo\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x1a\n" +
 	"\bendpoint\x18\x02 \x01(\tR\bendpoint\x12%\n" +
@@ -510,12 +593,13 @@ const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\x15UpdateMetadataRequest\x12!\n" +
 	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\"2\n" +
 	"\x16UpdateMetadataResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess2\xca\x02\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess2\x8a\x03\n" +
 	"\vCoordinator\x122\n" +
 	"\fRegisterNode\x12\f.v1.NodeInfo\x1a\x14.v1.RegisterResponse\x128\n" +
 	"\tHeartbeat\x12\x14.v1.HeartbeatRequest\x1a\x15.v1.HeartbeatResponse\x12>\n" +
 	"\rGetUploadPlan\x12\x15.v1.UploadPlanRequest\x1a\x16.v1.UploadPlanResponse\x12D\n" +
-	"\x0fGetDownloadPlan\x12\x17.v1.DownloadPlanRequest\x1a\x18.v1.DownloadPlanResponse\x12G\n" +
+	"\x0fGetDownloadPlan\x12\x17.v1.DownloadPlanRequest\x1a\x18.v1.DownloadPlanResponse\x12>\n" +
+	"\vGetMetadata\x12\x16.v1.GetMetadataRequest\x1a\x17.v1.GetMetadataResponse\x12G\n" +
 	"\x0eUpdateMetadata\x12\x19.v1.UpdateMetadataRequest\x1a\x1a.v1.UpdateMetadataResponseB6Z4github.com/Baba01hacker666/Gocryptvault/api/proto/v1b\x06proto3"
 
 var (
@@ -530,36 +614,40 @@ func file_api_proto_v1_coordinator_proto_rawDescGZIP() []byte {
 	return file_api_proto_v1_coordinator_proto_rawDescData
 }
 
-var file_api_proto_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_api_proto_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_api_proto_v1_coordinator_proto_goTypes = []any{
-	(*NodeInfo)(nil),               // 0: v1.NodeInfo
-	(*RegisterResponse)(nil),       // 1: v1.RegisterResponse
-	(*HeartbeatRequest)(nil),       // 2: v1.HeartbeatRequest
-	(*HeartbeatResponse)(nil),      // 3: v1.HeartbeatResponse
-	(*UploadPlanRequest)(nil),      // 4: v1.UploadPlanRequest
-	(*UploadPlanResponse)(nil),     // 5: v1.UploadPlanResponse
-	(*DownloadPlanRequest)(nil),    // 6: v1.DownloadPlanRequest
-	(*DownloadPlanResponse)(nil),   // 7: v1.DownloadPlanResponse
-	(*UpdateMetadataRequest)(nil),  // 8: v1.UpdateMetadataRequest
-	(*UpdateMetadataResponse)(nil), // 9: v1.UpdateMetadataResponse
-	nil,                            // 10: v1.UploadPlanResponse.AssignmentsEntry
-	nil,                            // 11: v1.DownloadPlanResponse.LocationsEntry
+	(*GetMetadataRequest)(nil),     // 0: v1.GetMetadataRequest
+	(*GetMetadataResponse)(nil),    // 1: v1.GetMetadataResponse
+	(*NodeInfo)(nil),               // 2: v1.NodeInfo
+	(*RegisterResponse)(nil),       // 3: v1.RegisterResponse
+	(*HeartbeatRequest)(nil),       // 4: v1.HeartbeatRequest
+	(*HeartbeatResponse)(nil),      // 5: v1.HeartbeatResponse
+	(*UploadPlanRequest)(nil),      // 6: v1.UploadPlanRequest
+	(*UploadPlanResponse)(nil),     // 7: v1.UploadPlanResponse
+	(*DownloadPlanRequest)(nil),    // 8: v1.DownloadPlanRequest
+	(*DownloadPlanResponse)(nil),   // 9: v1.DownloadPlanResponse
+	(*UpdateMetadataRequest)(nil),  // 10: v1.UpdateMetadataRequest
+	(*UpdateMetadataResponse)(nil), // 11: v1.UpdateMetadataResponse
+	nil,                            // 12: v1.UploadPlanResponse.AssignmentsEntry
+	nil,                            // 13: v1.DownloadPlanResponse.LocationsEntry
 }
 var file_api_proto_v1_coordinator_proto_depIdxs = []int32{
-	10, // 0: v1.UploadPlanResponse.assignments:type_name -> v1.UploadPlanResponse.AssignmentsEntry
-	11, // 1: v1.DownloadPlanResponse.locations:type_name -> v1.DownloadPlanResponse.LocationsEntry
-	0,  // 2: v1.Coordinator.RegisterNode:input_type -> v1.NodeInfo
-	2,  // 3: v1.Coordinator.Heartbeat:input_type -> v1.HeartbeatRequest
-	4,  // 4: v1.Coordinator.GetUploadPlan:input_type -> v1.UploadPlanRequest
-	6,  // 5: v1.Coordinator.GetDownloadPlan:input_type -> v1.DownloadPlanRequest
-	8,  // 6: v1.Coordinator.UpdateMetadata:input_type -> v1.UpdateMetadataRequest
-	1,  // 7: v1.Coordinator.RegisterNode:output_type -> v1.RegisterResponse
-	3,  // 8: v1.Coordinator.Heartbeat:output_type -> v1.HeartbeatResponse
-	5,  // 9: v1.Coordinator.GetUploadPlan:output_type -> v1.UploadPlanResponse
-	7,  // 10: v1.Coordinator.GetDownloadPlan:output_type -> v1.DownloadPlanResponse
-	9,  // 11: v1.Coordinator.UpdateMetadata:output_type -> v1.UpdateMetadataResponse
-	7,  // [7:12] is the sub-list for method output_type
-	2,  // [2:7] is the sub-list for method input_type
+	12, // 0: v1.UploadPlanResponse.assignments:type_name -> v1.UploadPlanResponse.AssignmentsEntry
+	13, // 1: v1.DownloadPlanResponse.locations:type_name -> v1.DownloadPlanResponse.LocationsEntry
+	2,  // 2: v1.Coordinator.RegisterNode:input_type -> v1.NodeInfo
+	4,  // 3: v1.Coordinator.Heartbeat:input_type -> v1.HeartbeatRequest
+	6,  // 4: v1.Coordinator.GetUploadPlan:input_type -> v1.UploadPlanRequest
+	8,  // 5: v1.Coordinator.GetDownloadPlan:input_type -> v1.DownloadPlanRequest
+	0,  // 6: v1.Coordinator.GetMetadata:input_type -> v1.GetMetadataRequest
+	10, // 7: v1.Coordinator.UpdateMetadata:input_type -> v1.UpdateMetadataRequest
+	3,  // 8: v1.Coordinator.RegisterNode:output_type -> v1.RegisterResponse
+	5,  // 9: v1.Coordinator.Heartbeat:output_type -> v1.HeartbeatResponse
+	7,  // 10: v1.Coordinator.GetUploadPlan:output_type -> v1.UploadPlanResponse
+	9,  // 11: v1.Coordinator.GetDownloadPlan:output_type -> v1.DownloadPlanResponse
+	1,  // 12: v1.Coordinator.GetMetadata:output_type -> v1.GetMetadataResponse
+	11, // 13: v1.Coordinator.UpdateMetadata:output_type -> v1.UpdateMetadataResponse
+	8,  // [8:14] is the sub-list for method output_type
+	2,  // [2:8] is the sub-list for method input_type
 	2,  // [2:2] is the sub-list for extension type_name
 	2,  // [2:2] is the sub-list for extension extendee
 	0,  // [0:2] is the sub-list for field type_name
@@ -576,7 +664,7 @@ func file_api_proto_v1_coordinator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_v1_coordinator_proto_rawDesc), len(file_api_proto_v1_coordinator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

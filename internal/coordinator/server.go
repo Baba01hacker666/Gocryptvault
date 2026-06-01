@@ -55,6 +55,18 @@ func (s *CoordinatorServer) GetDownloadPlan(ctx context.Context, req *pb.Downloa
 	return &pb.DownloadPlanResponse{Locations: locs}, nil
 }
 
+func (s *CoordinatorServer) GetMetadata(ctx context.Context, req *pb.GetMetadataRequest) (*pb.GetMetadataResponse, error) {
+	path := filepath.Join(s.VaultDir, "metadata.enc")
+	data, err := os.ReadFile(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return &pb.GetMetadataResponse{EncryptedDb: nil}, nil
+		}
+		return nil, err
+	}
+	return &pb.GetMetadataResponse{EncryptedDb: data}, nil
+}
+
 func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMetadataRequest) (*pb.UpdateMetadataResponse, error) {
 	path := filepath.Join(s.VaultDir, "metadata.enc")
 	if err := os.WriteFile(path, req.EncryptedDb, 0600); err != nil {

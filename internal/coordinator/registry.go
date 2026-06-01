@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"sort"
 	"sync"
 	"time"
 )
@@ -41,5 +42,8 @@ func (r *Registry) GetHealthyNodes() []*RegisteredNode {
 			healthy = append(healthy, n)
 		}
 	}
+	sort.Slice(healthy, func(i, j int) bool {
+		return healthy[i].ID < healthy[j].ID
+	})
 	return healthy
 }

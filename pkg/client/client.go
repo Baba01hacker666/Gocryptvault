@@ -9,7 +9,7 @@ import (
 )
 
 type Client struct {
-	rpc *rpc.Client
+	RPC *rpc.Client
 }
 
 func NewClient() (*Client, error) {
@@ -17,16 +17,16 @@ func NewClient() (*Client, error) {
 	if err != nil {
 		return nil, fmt.Errorf("client: failed to connect to daemon: %w", err)
 	}
-	return &Client{rpc: c}, nil
+	return &Client{RPC: c}, nil
 }
 
 func (c *Client) Close() error {
-	return c.rpc.Close()
+	return c.RPC.Close()
 }
 
 func (c *Client) Unlock(password []byte) (bool, error) {
 	var reply bool
-	err := c.rpc.Call("VaultDaemon.Unlock", password, &reply)
+	err := c.RPC.Call("VaultDaemon.Unlock", password, &reply)
 	if err != nil {
 		return false, fmt.Errorf("client: failed to unlock: %w", err)
 	}
@@ -35,7 +35,7 @@ func (c *Client) Unlock(password []byte) (bool, error) {
 
 func (c *Client) IsUnlocked() (bool, error) {
 	var reply types.StatusReply
-	err := c.rpc.Call("VaultDaemon.Status", &struct{}{}, &reply)
+	err := c.RPC.Call("VaultDaemon.Status", &struct{}{}, &reply)
 	if err != nil {
 		return false, fmt.Errorf("client: failed to get status: %w", err)
 	}
@@ -44,7 +44,7 @@ func (c *Client) IsUnlocked() (bool, error) {
 
 func (c *Client) ListFiles() ([]*types.FileRecord, error) {
 	var reply []*types.FileRecord
-	err := c.rpc.Call("VaultDaemon.ListFiles", &struct{}{}, &reply)
+	err := c.RPC.Call("VaultDaemon.ListFiles", &struct{}{}, &reply)
 	if err != nil {
 		return nil, fmt.Errorf("client: failed to list files: %w", err)
 	}
@@ -53,7 +53,7 @@ func (c *Client) ListFiles() ([]*types.FileRecord, error) {
 
 func (c *Client) GetFile(fileID string) (*types.FileRecord, error) {
 	var reply types.FileRecord
-	err := c.rpc.Call("VaultDaemon.GetFile", fileID, &reply)
+	err := c.RPC.Call("VaultDaemon.GetFile", fileID, &reply)
 	if err != nil {
 		return nil, fmt.Errorf("client: failed to get file: %w", err)
 	}
@@ -63,7 +63,7 @@ func (c *Client) GetFile(fileID string) (*types.FileRecord, error) {
 func (c *Client) AddFile(sourcePath, logicalName string) error {
 	var reply bool
 	args := &types.AddFileArgs{SourcePath: sourcePath, LogicalName: logicalName}
-	if err := c.rpc.Call("VaultDaemon.AddFile", args, &reply); err != nil {
+	if err := c.RPC.Call("VaultDaemon.AddFile", args, &reply); err != nil {
 		return fmt.Errorf("client: failed to add file: %w", err)
 	}
 	return nil
@@ -72,8 +72,9 @@ func (c *Client) AddFile(sourcePath, logicalName string) error {
 func (c *Client) ExportFile(fileID, destDir string) error {
 	var reply bool
 	args := &types.ExportFileArgs{FileID: fileID, DestDir: destDir}
-	if err := c.rpc.Call("VaultDaemon.ExportFile", args, &reply); err != nil {
+	if err := c.RPC.Call("VaultDaemon.ExportFile", args, &reply); err != nil {
 		return fmt.Errorf("client: failed to export file: %w", err)
 	}
 	return nil
 }
+

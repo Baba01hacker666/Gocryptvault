@@ -148,17 +148,18 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 	}
 
 	// 5. Update Metadata
-	// We need to get the current metadata DB first.
-	// Since Coordinator doesn't have GetMetadata, let's assume we have it locally 
-	// or we just created a new one if it doesn't exist.
-	// In a real scenario, the client would likely have the metadata DB synced.
-	
-	// For this task, I'll try to load it from the daemon's vault path if possible, 
-	// but that might not work if remote. 
-	// I'll create a dummy DB or use a local one for now.
-	db := metadata.NewMetadataDB()
+	resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	var db *metadata.MetadataDB
+	if err == nil && resp != nil && resp.EncryptedDb != nil {
+		db, err = metadata.DecryptMetadata(resp.EncryptedDb, sess.GetMetaKey())
+		if err != nil {
+			return fmt.Errorf("failed to decrypt metadata from coordinator: %w", err)
+		}
+	} else {
+		db = metadata.NewMetadataDB()
+	}
 	db.Files[record.ID] = record
-	
+
 	encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
 	if err != nil {
 		return fmt.Errorf("failed to encrypt metadata: %w", err)
@@ -213,6 +214,46 @@ func (c *Client) uploadShard(endpoint, shardID string, data []byte, tlsConfig *t
 	return nil
 }
 
+func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Config) ([]*types.FileRecord, error) {
+	// 1. Ensure session
+	sess, err := session.GetSession()
+	if err != nil {
+		if err := c.ensureSession(); err != nil {
+			return nil, err
+		}
+		sess, _ = session.GetSession()
+	}
+
+	// 2. Connect to Coordinator
+	conn, err := grpc.Dial(coordinatorAddr, grpc.WithTransportCredentials(credentials.NewTLS(tlsConfig)))
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+	coordinator := pb.NewCoordinatorClient(conn)
+
+	// 3. Get Metadata
+	resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.EncryptedDb == nil {
+		return []*types.FileRecord{}, nil
+	}
+
+	db, err := metadata.DecryptMetadata(resp.EncryptedDb, sess.GetMetaKey())
+	if err != nil {
+		return nil, err
+	}
+
+	var files []*types.FileRecord
+	for _, f := range db.Files {
+		files = append(files, f)
+	}
+	return files, nil
+}
+
 func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr string, tlsConfig *tls.Config) error {
 	// 1. Ensure session
 	sess, err := session.GetSession()
@@ -237,23 +278,25 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 		return err
 	}
 
-	// 4. We need the FileRecord to know how many chunks and shard IDs.
-	// Since we don't have GetFile from Coordinator, we assume we have the metadata DB.
-	// For now, I'll list files from daemon to find the record, but this is a hack.
-	// Ideally, the client has the metadata DB.
-	files, err := c.ListFiles()
-	if err != nil {
-		return err
+	// 4. Get Metadata to find the record
+	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	if err != nil || mResp.EncryptedDb == nil {
+		return fmt.Errorf("failed to get metadata from coordinator: %v", err)
 	}
+	db, err := metadata.DecryptMetadata(mResp.EncryptedDb, sess.GetMetaKey())
+	if err != nil {
+		return fmt.Errorf("failed to decrypt metadata: %v", err)
+	}
+
 	var record *types.FileRecord
-	for _, f := range files {
+	for _, f := range db.Files {
 		if f.ID == fileID {
 			record = f
 			break
 		}
 	}
 	if record == nil {
-		return fmt.Errorf("file not found in local metadata")
+		return fmt.Errorf("file not found in coordinator metadata")
 	}
 
 	dest := filepath.Join(destDir, record.Filename)
@@ -335,7 +378,7 @@ func (c *Client) ensureSession() error {
 	// Re-use logic from daemon.EnsureLocalSession but call it here
 	// This might need daemon package imports
 	var reply types.KeysReply
-	err := c.rpc.Call("VaultDaemon.GetKeys", &struct{}{}, &reply)
+	err := c.RPC.Call("VaultDaemon.GetKeys", &struct{}{}, &reply)
 	if err != nil {
 		return fmt.Errorf("vault is locked or daemon not running: %w", err)
 	}

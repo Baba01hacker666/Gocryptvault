@@ -7,8 +7,12 @@ service Coordinator {
     rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
     rpc GetUploadPlan(UploadPlanRequest) returns (UploadPlanResponse);
     rpc GetDownloadPlan(DownloadPlanRequest) returns (DownloadPlanResponse);
+    rpc GetMetadata(GetMetadataRequest) returns (GetMetadataResponse);
     rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
 }
+
+message GetMetadataRequest {}
+message GetMetadataResponse { bytes encrypted_db = 1; }
 
 message NodeInfo {
     string id = 1;

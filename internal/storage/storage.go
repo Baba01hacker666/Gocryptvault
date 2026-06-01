@@ -232,7 +232,7 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 		Compressed: true, // New chunks have compression headers
 		Created:    time.Now().Unix(),
 		Modified:   info.ModTime().Unix(),
-		Chunks:     make([]string, numChunks),
+		Chunks:     make([]types.ChunkInfo, numChunks),
 	}
 
 	masterKey := sess.GetMasterKey()
@@ -244,9 +244,10 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 	}
 
 	type chunkResult struct {
-		index   int
-		chunkID string
-		err     error
+		index    int
+		shardIDs []string
+		size     int
+		err      error
 	}
 
 	numWorkers := runtime.NumCPU()
@@ -264,11 +265,12 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 		go func() {
 			defer wg.Done()
 			for job := range jobs {
-				chunkID, err := objects.StoreChunk(objectsDir, job.data, masterKey)
+				shardIDs, size, err := objects.StoreShards(objectsDir, job.data, masterKey)
 				results <- chunkResult{
-					index:   job.index,
-					chunkID: chunkID,
-					err:     err,
+					index:    job.index,
+					shardIDs: shardIDs,
+					size:     size,
+					err:      err,
 				}
 			}
 		}()
@@ -305,9 +307,21 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 
 	for res := range results {
 		if res.err != nil {
-			return fmt.Errorf("failed to store chunk: %w", res.err)
+			return fmt.Errorf("failed to store shards: %w", res.err)
 		}
-		record.Chunks[res.index] = res.chunkID
+		shards := make([]types.ShardInfo, len(res.shardIDs))
+		for i, shardID := range res.shardIDs {
+			shards[i] = types.ShardInfo{
+				Index:   i,
+				ShardID: shardID,
+				NodeID:  "local",
+			}
+		}
+		record.Chunks[res.index] = types.ChunkInfo{
+			Index:  res.index,
+			Size:   res.size,
+			Shards: shards,
+		}
 	}
 
 	if readErr != nil {
@@ -316,7 +330,7 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 
 	// Truncate Chunks slice if empty file resulted in 0 actual chunks written
 	if info.Size() == 0 {
-		record.Chunks = []string{}
+		record.Chunks = []types.ChunkInfo{}
 	}
 
 	v.mu.Lock()
@@ -377,8 +391,9 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 	objectsDir := filepath.Join(v.BaseDir, "objects")
 
 	type exportJob struct {
-		index   int
-		chunkID string
+		index     int
+		shardIDs  []string
+		chunkSize int
 	}
 
 	type exportResult struct {
@@ -402,7 +417,7 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 		go func() {
 			defer wg.Done()
 			for job := range jobs {
-				plaintext, err := objects.RetrieveChunk(objectsDir, job.chunkID, masterKey, record.Compressed)
+				plaintext, err := objects.RetrieveShards(objectsDir, job.shardIDs, masterKey, job.chunkSize)
 				results <- exportResult{
 					index: job.index,
 					data:  plaintext,
@@ -418,10 +433,15 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 	}()
 
 	go func() {
-		for i, chunkID := range record.Chunks {
+		for i, chunk := range record.Chunks {
+			shardIDs := make([]string, len(chunk.Shards))
+			for j, s := range chunk.Shards {
+				shardIDs[j] = s.ShardID
+			}
 			jobs <- exportJob{
-				index:   i,
-				chunkID: chunkID,
+				index:     i,
+				shardIDs:  shardIDs,
+				chunkSize: chunk.Size,
 			}
 		}
 		close(jobs)
@@ -491,8 +511,10 @@ func (v *Vault) DeleteFile(fileID string) error {
 	}
 
 	objectsDir := filepath.Join(v.BaseDir, "objects")
-	for _, chunkID := range record.Chunks {
-		_ = objects.DeleteChunk(objectsDir, chunkID)
+	for _, chunk := range record.Chunks {
+		for _, shard := range chunk.Shards {
+			_ = objects.DeleteChunk(objectsDir, shard.ShardID)
+		}
 	}
 
 	delete(db.Files, fileID)
