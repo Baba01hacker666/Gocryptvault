@@ -319,9 +319,12 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 		shards := make([][]byte, objects.DataShards+objects.ParityShards)
 		var wg sync.WaitGroup
 		
-		for j, s := range chunk.Shards {
+		for _, s := range chunk.Shards {
 			// Find location for this shard ID from plan
-			endpoint := plan.Locations[s.ShardID]
+			endpoint, ok := plan.Locations[s.ShardID]
+			if !ok || endpoint == "" {
+				continue
+			}
 			
 			wg.Add(1)
 			go func(idx int, sID string, addr string) {
@@ -333,7 +336,7 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 				if err == nil {
 					shards[idx] = data
 				}
-			}(j, s.ShardID, endpoint)
+			}(s.Index, s.ShardID, endpoint)
 		}
 		wg.Wait()
 

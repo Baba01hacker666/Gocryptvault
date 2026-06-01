@@ -49,6 +49,9 @@ func (s *CoordinatorServer) GetDownloadPlan(ctx context.Context, req *pb.Downloa
 		node := s.Registry.GetNode(nodeID)
 		if node != nil {
 			locs[shardID] = node.Endpoint
+		} else {
+			// Fallback: if nodeID is already an endpoint, use it directly
+			locs[shardID] = nodeID
 		}
 	}
 	return &pb.DownloadPlanResponse{Locations: locs}, nil
