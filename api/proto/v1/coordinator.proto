@@ -30,9 +30,18 @@ message UploadPlanResponse {
 }
 
 message DownloadPlanRequest { string file_id = 1; }
-message DownloadPlanResponse {
-    map<int32, string> locations = 2; // ShardIndex -> NodeEndpoint
+
+message ShardLocations {
+    map<string, string> shard_to_node = 1; // ShardID -> NodeID
 }
 
-message UpdateMetadataRequest { bytes encrypted_db = 1; }
+message DownloadPlanResponse {
+    map<string, string> locations = 1; // ShardID -> NodeEndpoint
+}
+
+message UpdateMetadataRequest {
+    bytes encrypted_db = 1;
+    map<string, ShardLocations> new_file_locations = 2; // FileID -> ShardLocations
+}
+
 message UpdateMetadataResponse { bool success = 1; }

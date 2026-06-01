@@ -5,21 +5,50 @@ import (
 	"time"
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/client"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/security"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/spf13/cobra"
+)
+
+var (
+	distList      bool
+	distListCoord string
 )
 
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "List files in the vault",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		// Try RPC first for better performance (daemon-side cache)
-		files, err := daemon.ListFilesRPC()
-		if err != nil {
-			// Fallback to local if daemon is not running or other error
-			v := getVault()
-			files, err = v.ListFiles()
+		var files []*types.FileRecord
+		var err error
+
+		if distList {
+			tlsConfig, err := security.LoadTLSConfig(distCA, distCert, distKey, false)
 			if err != nil {
-				return fmt.Errorf("failed to list files: %w", err)
+				return fmt.Errorf("failed to load TLS config: %w", err)
+			}
+
+			c, err := client.NewClient()
+			if err != nil {
+				return fmt.Errorf("failed to connect to daemon: %w", err)
+			}
+			defer c.Close()
+
+			files, err = c.ListFilesDistributed(distListCoord, tlsConfig)
+			if err != nil {
+				return fmt.Errorf("distributed list failed: %w", err)
+			}
+		} else {
+			// Try RPC first for better performance (daemon-side cache)
+			files, err = daemon.ListFilesRPC()
+			if err != nil {
+				// Fallback to local if daemon is not running or other error
+				v := getVault()
+				files, err = v.ListFiles()
+				if err != nil {
+					return fmt.Errorf("failed to list files: %w", err)
+				}
 			}
 		}
 
@@ -35,5 +64,12 @@ var listCmd = &cobra.Command{
 }
 
 func init() {
+	listCmd.Flags().BoolVar(&distList, "distributed", false, "Use distributed mode")
+	listCmd.Flags().StringVar(&distListCoord, "coordinator", "127.0.0.1:50051", "Coordinator address")
+	// Re-use certificates from add command
+	listCmd.Flags().StringVar(&distCA, "ca", "ca.crt", "CA certificate for distributed mode")
+	listCmd.Flags().StringVar(&distCert, "cert", "client.crt", "Client certificate for distributed mode")
+	listCmd.Flags().StringVar(&distKey, "key", "client.key", "Client key for distributed mode")
+
 	rootCmd.AddCommand(listCmd)
 }

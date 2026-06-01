@@ -425,16 +425,60 @@ func (x *DownloadPlanRequest) GetFileId() string {
 	return ""
 }
 
+type ShardLocations struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShardToNode   map[string]string      `protobuf:"bytes,1,rep,name=shard_to_node,json=shardToNode,proto3" json:"shard_to_node,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // ShardID -> NodeID
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ShardLocations) Reset() {
+	*x = ShardLocations{}
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ShardLocations) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ShardLocations) ProtoMessage() {}
+
+func (x *ShardLocations) ProtoReflect() protoreflect.Message {
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ShardLocations.ProtoReflect.Descriptor instead.
+func (*ShardLocations) Descriptor() ([]byte, []int) {
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *ShardLocations) GetShardToNode() map[string]string {
+	if x != nil {
+		return x.ShardToNode
+	}
+	return nil
+}
+
 type DownloadPlanResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	Locations     map[int32]string       `protobuf:"bytes,2,rep,name=locations,proto3" json:"locations,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // ShardIndex -> NodeEndpoint
+	Locations     map[string]string      `protobuf:"bytes,1,rep,name=locations,proto3" json:"locations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // ShardID -> NodeEndpoint
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DownloadPlanResponse) Reset() {
 	*x = DownloadPlanResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -446,7 +490,7 @@ func (x *DownloadPlanResponse) String() string {
 func (*DownloadPlanResponse) ProtoMessage() {}
 
 func (x *DownloadPlanResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[9]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -459,10 +503,10 @@ func (x *DownloadPlanResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DownloadPlanResponse.ProtoReflect.Descriptor instead.
 func (*DownloadPlanResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{9}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{10}
 }
 
-func (x *DownloadPlanResponse) GetLocations() map[int32]string {
+func (x *DownloadPlanResponse) GetLocations() map[string]string {
 	if x != nil {
 		return x.Locations
 	}
@@ -470,15 +514,16 @@ func (x *DownloadPlanResponse) GetLocations() map[int32]string {
 }
 
 type UpdateMetadataRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	EncryptedDb   []byte                 `protobuf:"bytes,1,opt,name=encrypted_db,json=encryptedDb,proto3" json:"encrypted_db,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state            protoimpl.MessageState     `protogen:"open.v1"`
+	EncryptedDb      []byte                     `protobuf:"bytes,1,opt,name=encrypted_db,json=encryptedDb,proto3" json:"encrypted_db,omitempty"`
+	NewFileLocations map[string]*ShardLocations `protobuf:"bytes,2,rep,name=new_file_locations,json=newFileLocations,proto3" json:"new_file_locations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // FileID -> ShardLocations
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *UpdateMetadataRequest) Reset() {
 	*x = UpdateMetadataRequest{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -490,7 +535,7 @@ func (x *UpdateMetadataRequest) String() string {
 func (*UpdateMetadataRequest) ProtoMessage() {}
 
 func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[10]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -503,12 +548,19 @@ func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataRequest) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{10}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *UpdateMetadataRequest) GetEncryptedDb() []byte {
 	if x != nil {
 		return x.EncryptedDb
+	}
+	return nil
+}
+
+func (x *UpdateMetadataRequest) GetNewFileLocations() map[string]*ShardLocations {
+	if x != nil {
+		return x.NewFileLocations
 	}
 	return nil
 }
@@ -522,7 +574,7 @@ type UpdateMetadataResponse struct {
 
 func (x *UpdateMetadataResponse) Reset() {
 	*x = UpdateMetadataResponse{}
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -534,7 +586,7 @@ func (x *UpdateMetadataResponse) String() string {
 func (*UpdateMetadataResponse) ProtoMessage() {}
 
 func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_api_proto_v1_coordinator_proto_msgTypes[11]
+	mi := &file_api_proto_v1_coordinator_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -547,7 +599,7 @@ func (x *UpdateMetadataResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UpdateMetadataResponse.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataResponse) Descriptor() ([]byte, []int) {
-	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{11}
+	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *UpdateMetadataResponse) GetSuccess() bool {
@@ -584,14 +636,23 @@ const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
 	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\".\n" +
 	"\x13DownloadPlanRequest\x12\x17\n" +
-	"\afile_id\x18\x01 \x01(\tR\x06fileId\"\x9b\x01\n" +
+	"\afile_id\x18\x01 \x01(\tR\x06fileId\"\x99\x01\n" +
+	"\x0eShardLocations\x12G\n" +
+	"\rshard_to_node\x18\x01 \x03(\v2#.v1.ShardLocations.ShardToNodeEntryR\vshardToNode\x1a>\n" +
+	"\x10ShardToNodeEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x9b\x01\n" +
 	"\x14DownloadPlanResponse\x12E\n" +
-	"\tlocations\x18\x02 \x03(\v2'.v1.DownloadPlanResponse.LocationsEntryR\tlocations\x1a<\n" +
+	"\tlocations\x18\x01 \x03(\v2'.v1.DownloadPlanResponse.LocationsEntryR\tlocations\x1a<\n" +
 	"\x0eLocationsEntry\x12\x10\n" +
-	"\x03key\x18\x01 \x01(\x05R\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\":\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf2\x01\n" +
 	"\x15UpdateMetadataRequest\x12!\n" +
-	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\"2\n" +
+	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\x12]\n" +
+	"\x12new_file_locations\x18\x02 \x03(\v2/.v1.UpdateMetadataRequest.NewFileLocationsEntryR\x10newFileLocations\x1aW\n" +
+	"\x15NewFileLocationsEntry\x12\x10\n" +
+	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
+	"\x05value\x18\x02 \x01(\v2\x12.v1.ShardLocationsR\x05value:\x028\x01\"2\n" +
 	"\x16UpdateMetadataResponse\x12\x18\n" +
 	"\asuccess\x18\x01 \x01(\bR\asuccess2\x8a\x03\n" +
 	"\vCoordinator\x122\n" +
@@ -614,7 +675,7 @@ func file_api_proto_v1_coordinator_proto_rawDescGZIP() []byte {
 	return file_api_proto_v1_coordinator_proto_rawDescData
 }
 
-var file_api_proto_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
+var file_api_proto_v1_coordinator_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_api_proto_v1_coordinator_proto_goTypes = []any{
 	(*GetMetadataRequest)(nil),     // 0: v1.GetMetadataRequest
 	(*GetMetadataResponse)(nil),    // 1: v1.GetMetadataResponse
@@ -625,32 +686,38 @@ var file_api_proto_v1_coordinator_proto_goTypes = []any{
 	(*UploadPlanRequest)(nil),      // 6: v1.UploadPlanRequest
 	(*UploadPlanResponse)(nil),     // 7: v1.UploadPlanResponse
 	(*DownloadPlanRequest)(nil),    // 8: v1.DownloadPlanRequest
-	(*DownloadPlanResponse)(nil),   // 9: v1.DownloadPlanResponse
-	(*UpdateMetadataRequest)(nil),  // 10: v1.UpdateMetadataRequest
-	(*UpdateMetadataResponse)(nil), // 11: v1.UpdateMetadataResponse
-	nil,                            // 12: v1.UploadPlanResponse.AssignmentsEntry
-	nil,                            // 13: v1.DownloadPlanResponse.LocationsEntry
+	(*ShardLocations)(nil),         // 9: v1.ShardLocations
+	(*DownloadPlanResponse)(nil),   // 10: v1.DownloadPlanResponse
+	(*UpdateMetadataRequest)(nil),  // 11: v1.UpdateMetadataRequest
+	(*UpdateMetadataResponse)(nil), // 12: v1.UpdateMetadataResponse
+	nil,                            // 13: v1.UploadPlanResponse.AssignmentsEntry
+	nil,                            // 14: v1.ShardLocations.ShardToNodeEntry
+	nil,                            // 15: v1.DownloadPlanResponse.LocationsEntry
+	nil,                            // 16: v1.UpdateMetadataRequest.NewFileLocationsEntry
 }
 var file_api_proto_v1_coordinator_proto_depIdxs = []int32{
-	12, // 0: v1.UploadPlanResponse.assignments:type_name -> v1.UploadPlanResponse.AssignmentsEntry
-	13, // 1: v1.DownloadPlanResponse.locations:type_name -> v1.DownloadPlanResponse.LocationsEntry
-	2,  // 2: v1.Coordinator.RegisterNode:input_type -> v1.NodeInfo
-	4,  // 3: v1.Coordinator.Heartbeat:input_type -> v1.HeartbeatRequest
-	6,  // 4: v1.Coordinator.GetUploadPlan:input_type -> v1.UploadPlanRequest
-	8,  // 5: v1.Coordinator.GetDownloadPlan:input_type -> v1.DownloadPlanRequest
-	0,  // 6: v1.Coordinator.GetMetadata:input_type -> v1.GetMetadataRequest
-	10, // 7: v1.Coordinator.UpdateMetadata:input_type -> v1.UpdateMetadataRequest
-	3,  // 8: v1.Coordinator.RegisterNode:output_type -> v1.RegisterResponse
-	5,  // 9: v1.Coordinator.Heartbeat:output_type -> v1.HeartbeatResponse
-	7,  // 10: v1.Coordinator.GetUploadPlan:output_type -> v1.UploadPlanResponse
-	9,  // 11: v1.Coordinator.GetDownloadPlan:output_type -> v1.DownloadPlanResponse
-	1,  // 12: v1.Coordinator.GetMetadata:output_type -> v1.GetMetadataResponse
-	11, // 13: v1.Coordinator.UpdateMetadata:output_type -> v1.UpdateMetadataResponse
-	8,  // [8:14] is the sub-list for method output_type
-	2,  // [2:8] is the sub-list for method input_type
-	2,  // [2:2] is the sub-list for extension type_name
-	2,  // [2:2] is the sub-list for extension extendee
-	0,  // [0:2] is the sub-list for field type_name
+	13, // 0: v1.UploadPlanResponse.assignments:type_name -> v1.UploadPlanResponse.AssignmentsEntry
+	14, // 1: v1.ShardLocations.shard_to_node:type_name -> v1.ShardLocations.ShardToNodeEntry
+	15, // 2: v1.DownloadPlanResponse.locations:type_name -> v1.DownloadPlanResponse.LocationsEntry
+	16, // 3: v1.UpdateMetadataRequest.new_file_locations:type_name -> v1.UpdateMetadataRequest.NewFileLocationsEntry
+	9,  // 4: v1.UpdateMetadataRequest.NewFileLocationsEntry.value:type_name -> v1.ShardLocations
+	2,  // 5: v1.Coordinator.RegisterNode:input_type -> v1.NodeInfo
+	4,  // 6: v1.Coordinator.Heartbeat:input_type -> v1.HeartbeatRequest
+	6,  // 7: v1.Coordinator.GetUploadPlan:input_type -> v1.UploadPlanRequest
+	8,  // 8: v1.Coordinator.GetDownloadPlan:input_type -> v1.DownloadPlanRequest
+	0,  // 9: v1.Coordinator.GetMetadata:input_type -> v1.GetMetadataRequest
+	11, // 10: v1.Coordinator.UpdateMetadata:input_type -> v1.UpdateMetadataRequest
+	3,  // 11: v1.Coordinator.RegisterNode:output_type -> v1.RegisterResponse
+	5,  // 12: v1.Coordinator.Heartbeat:output_type -> v1.HeartbeatResponse
+	7,  // 13: v1.Coordinator.GetUploadPlan:output_type -> v1.UploadPlanResponse
+	10, // 14: v1.Coordinator.GetDownloadPlan:output_type -> v1.DownloadPlanResponse
+	1,  // 15: v1.Coordinator.GetMetadata:output_type -> v1.GetMetadataResponse
+	12, // 16: v1.Coordinator.UpdateMetadata:output_type -> v1.UpdateMetadataResponse
+	11, // [11:17] is the sub-list for method output_type
+	5,  // [5:11] is the sub-list for method input_type
+	5,  // [5:5] is the sub-list for extension type_name
+	5,  // [5:5] is the sub-list for extension extendee
+	0,  // [0:5] is the sub-list for field type_name
 }
 
 func init() { file_api_proto_v1_coordinator_proto_init() }
@@ -664,7 +731,7 @@ func file_api_proto_v1_coordinator_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_api_proto_v1_coordinator_proto_rawDesc), len(file_api_proto_v1_coordinator_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   14,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

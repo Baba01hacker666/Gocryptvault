@@ -43,15 +43,9 @@ func (s *CoordinatorServer) GetUploadPlan(ctx context.Context, req *pb.UploadPla
 }
 
 func (s *CoordinatorServer) GetDownloadPlan(ctx context.Context, req *pb.DownloadPlanRequest) (*pb.DownloadPlanResponse, error) {
-	// In a real impl, we'd lookup which nodes HAVE the shards for fileID. 
-	// For now, we assume a simple round-robin distribution matches what we assigned.
-	nodes := s.Registry.GetHealthyNodes()
-	locs := make(map[int32]string)
-	for i := 0; i < 6; i++ { // 4+2 shards
-		if len(nodes) > 0 {
-			locs[int32(i)] = nodes[i%len(nodes)].Endpoint
-		}
-	}
+	// In a real impl, we'd lookup which nodes HAVE the shards for fileID from s.Registry.
+	// For now, returning empty as proper tracking is in Task 2.
+	locs := make(map[string]string)
 	return &pb.DownloadPlanResponse{Locations: locs}, nil
 }
 

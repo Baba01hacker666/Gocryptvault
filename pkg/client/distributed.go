@@ -62,10 +62,6 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 	// 4. Encrypt and Shard locally
 	masterKey := sess.GetMasterKey()
 	
-	// For simplicity in this task, we process the whole file. 
-	// In a real impl, we'd do it chunk by chunk like in storage.go.
-	// But let's follow the storage.go pattern for consistency.
-	
 	numChunks := int((info.Size() + int64(objects.ChunkSize) - 1) / int64(objects.ChunkSize))
 	if numChunks == 0 { numChunks = 1 }
 
@@ -85,6 +81,9 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 
 	// We'll use a semaphore to limit concurrent uploads
 	limit := make(chan struct{}, 4)
+	shardLocs := &pb.ShardLocations{
+		ShardToNode: make(map[string]string),
+	}
 
 	for i := 0; i < numChunks; i++ {
 		buf := make([]byte, objects.ChunkSize)
@@ -125,6 +124,7 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 				ShardID: shardID,
 				NodeID:  nodeEndpoint, // Using endpoint as NodeID for now
 			}
+			shardLocs.ShardToNode[shardID] = nodeEndpoint
 
 			wg.Add(1)
 			go func(idx int, sData []byte, sID string, endpoint string) {
@@ -167,6 +167,9 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 
 	_, err = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
 		EncryptedDb: encryptedDB,
+		NewFileLocations: map[string]*pb.ShardLocations{
+			record.ID: shardLocs,
+		},
 	})
 	if err != nil {
 		return fmt.Errorf("failed to update metadata on coordinator: %w", err)
@@ -317,9 +320,8 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 		var wg sync.WaitGroup
 		
 		for j, s := range chunk.Shards {
-			// Find location for this shard index from plan
-			// Actually, the plan map is ShardIndex -> NodeEndpoint
-			endpoint := plan.Locations[int32(j)]
+			// Find location for this shard ID from plan
+			endpoint := plan.Locations[s.ShardID]
 			
 			wg.Add(1)
 			go func(idx int, sID string, addr string) {

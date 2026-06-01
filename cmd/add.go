@@ -5,10 +5,19 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/Baba01hacker666/Gocryptvault/pkg/client"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/security"
 	"github.com/spf13/cobra"
 )
 
-var asyncAdd bool
+var (
+	asyncAdd         bool
+	distAdd          bool
+	distCoordAddr    string
+	distCA           string
+	distCert         string
+	distKey          string
+)
 
 var addCmd = &cobra.Command{
 	Use:   "add [file_or_directory]",
@@ -16,12 +25,35 @@ var addCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	RunE: func(cmd *cobra.Command, args []string) error {
 		targetPath := args[0]
-
 		targetPath = filepath.Clean(targetPath)
 
 		info, err := os.Stat(targetPath)
 		if err != nil {
 			return err
+		}
+
+		if distAdd {
+			tlsConfig, err := security.LoadTLSConfig(distCA, distCert, distKey, false)
+			if err != nil {
+				return fmt.Errorf("failed to load TLS config: %w", err)
+			}
+
+			c, err := client.NewClient()
+			if err != nil {
+				return fmt.Errorf("failed to connect to daemon: %w", err)
+			}
+			defer c.Close()
+
+			if info.IsDir() {
+				return fmt.Errorf("distributed directory upload not yet implemented")
+			}
+
+			fmt.Printf("Adding file %s in distributed mode...\n", targetPath)
+			if err := c.AddFileDistributed(targetPath, filepath.Base(targetPath), distCoordAddr, tlsConfig); err != nil {
+				return fmt.Errorf("distributed add failed: %w", err)
+			}
+			fmt.Println("File added successfully in distributed mode.")
+			return nil
 		}
 
 		v := getVault()
@@ -81,5 +113,11 @@ var addCmd = &cobra.Command{
 
 func init() {
 	addCmd.Flags().BoolVar(&asyncAdd, "async", false, "Add file asynchronously")
+	addCmd.Flags().BoolVar(&distAdd, "distributed", false, "Use distributed mode")
+	addCmd.Flags().StringVar(&distCoordAddr, "coordinator", "127.0.0.1:50051", "Coordinator address")
+	addCmd.Flags().StringVar(&distCA, "ca", "ca.crt", "CA certificate for distributed mode")
+	addCmd.Flags().StringVar(&distCert, "cert", "client.crt", "Client certificate for distributed mode")
+	addCmd.Flags().StringVar(&distKey, "key", "client.key", "Client key for distributed mode")
+
 	rootCmd.AddCommand(addCmd)
 }
