@@ -1,0 +1,18 @@
+syntax = "proto3";
+package v1;
+option go_package = "github.com/Baba01hacker666/Gocryptvault/api/proto/v1";
+
+service StorageNode {
+    rpc PutShard(stream ShardChunk) returns (PutResponse);
+    rpc GetShard(ShardRequest) returns (stream ShardChunk);
+    rpc DeleteShard(ShardRequest) returns (DeleteResponse);
+}
+
+message ShardChunk {
+    string shard_id = 1;
+    bytes data = 2;
+}
+
+message PutResponse { bool success = 1; }
+message ShardRequest { string shard_id = 1; }
+message DeleteResponse { bool success = 1; }

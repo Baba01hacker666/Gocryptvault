@@ -1,0 +1,34 @@
+syntax = "proto3";
+package v1;
+option go_package = "github.com/Baba01hacker666/Gocryptvault/api/proto/v1";
+
+service Coordinator {
+    rpc RegisterNode(NodeInfo) returns (RegisterResponse);
+    rpc Heartbeat(HeartbeatRequest) returns (HeartbeatResponse);
+    rpc GetUploadPlan(UploadPlanRequest) returns (UploadPlanResponse);
+    rpc GetDownloadPlan(DownloadPlanRequest) returns (DownloadPlanResponse);
+    rpc UpdateMetadata(UpdateMetadataRequest) returns (UpdateMetadataResponse);
+}
+
+message NodeInfo {
+    string id = 1;
+    string endpoint = 2;
+    int64 capacity_bytes = 3;
+}
+
+message RegisterResponse { bool success = 1; }
+message HeartbeatRequest { string node_id = 1; }
+message HeartbeatResponse { bool acknowledged = 1; }
+
+message UploadPlanRequest { int32 shard_count = 1; }
+message UploadPlanResponse {
+    map<int32, string> assignments = 1; // ShardIndex -> NodeEndpoint
+}
+
+message DownloadPlanRequest { string file_id = 1; }
+message DownloadPlanResponse {
+    map<int32, string> locations = 2; // ShardIndex -> NodeEndpoint
+}
+
+message UpdateMetadataRequest { bytes encrypted_db = 1; }
+message UpdateMetadataResponse { bool success = 1; }
