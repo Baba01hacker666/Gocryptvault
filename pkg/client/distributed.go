@@ -85,11 +85,24 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		ShardToNode: make(map[string]string),
 	}
 
+	// Track successfully uploaded shards for cleanup on failure
+	uploadedShards := make(map[string]string) // shardID -> endpoint
+	var uploadMu sync.Mutex
+
+	cleanup := func() {
+		for sID, endpoint := range uploadedShards {
+			_ = c.deleteShard(endpoint, sID, tlsConfig)
+		}
+	}
+
 	for i := 0; i < numChunks; i++ {
 		buf := make([]byte, objects.ChunkSize)
 		n, err := f.Read(buf)
 		if n == 0 && err == io.EOF && i > 0 { break }
-		if err != nil && err != io.EOF { return err }
+		if err != nil && err != io.EOF {
+			cleanup()
+			return err
+		}
 
 		data := buf[:n]
 		
@@ -98,11 +111,13 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		planReq := &pb.UploadPlanRequest{ShardCount: int32(objects.DataShards + objects.ParityShards)}
 		plan, err := coordinator.GetUploadPlan(context.Background(), planReq)
 		if err != nil {
+			cleanup()
 			return fmt.Errorf("failed to get upload plan: %w", err)
 		}
 
 		shards, ciphertextSize, err := objects.EncryptAndShard(data, masterKey)
 		if err != nil {
+			cleanup()
 			return err
 		}
 
@@ -124,7 +139,10 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 				ShardID: shardID,
 				NodeID:  nodeEndpoint, // Using endpoint as NodeID for now
 			}
+			
+			uploadMu.Lock()
 			shardLocs.ShardToNode[shardID] = nodeEndpoint
+			uploadMu.Unlock()
 
 			wg.Add(1)
 			go func(idx int, sData []byte, sID string, endpoint string) {
@@ -134,6 +152,10 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 
 				if err := c.uploadShard(endpoint, sID, sData, tlsConfig); err != nil {
 					shardErrors <- fmt.Errorf("shard %d upload failed: %w", idx, err)
+				} else {
+					uploadMu.Lock()
+					uploadedShards[sID] = endpoint
+					uploadMu.Unlock()
 				}
 			}(j, shard, shardID, nodeEndpoint)
 		}
@@ -141,7 +163,10 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		wg.Wait()
 		close(shardErrors)
 		for err := range shardErrors {
-			if err != nil { return err }
+			if err != nil {
+				cleanup()
+				return err
+			}
 		}
 
 		record.Chunks[i] = chunkInfo
@@ -153,6 +178,7 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 	if err == nil && resp != nil && resp.EncryptedDb != nil {
 		db, err = metadata.DecryptMetadata(resp.EncryptedDb, sess.GetMetaKey())
 		if err != nil {
+			cleanup()
 			return fmt.Errorf("failed to decrypt metadata from coordinator: %w", err)
 		}
 	} else {
@@ -162,6 +188,7 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 
 	encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
 	if err != nil {
+		cleanup()
 		return fmt.Errorf("failed to encrypt metadata: %w", err)
 	}
 
@@ -172,6 +199,7 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		},
 	})
 	if err != nil {
+		cleanup()
 		return fmt.Errorf("failed to update metadata on coordinator: %w", err)
 	}
 
@@ -318,6 +346,8 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 	for _, chunk := range record.Chunks {
 		shards := make([][]byte, objects.DataShards+objects.ParityShards)
 		var wg sync.WaitGroup
+		var shardMu sync.Mutex
+		foundCount := 0
 		
 		for _, s := range chunk.Shards {
 			// Find location for this shard ID from plan
@@ -334,11 +364,18 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 
 				data, err := c.downloadShard(addr, sID, tlsConfig)
 				if err == nil {
+					shardMu.Lock()
 					shards[idx] = data
+					foundCount++
+					shardMu.Unlock()
 				}
 			}(s.Index, s.ShardID, endpoint)
 		}
 		wg.Wait()
+
+		if foundCount < objects.DataShards {
+			return fmt.Errorf("insufficient shards for chunk (found %d, need %d)", foundCount, objects.DataShards)
+		}
 
 		plaintext, err := objects.ReconstructAndDecrypt(shards, masterKey, chunk.Size)
 		if err != nil {
@@ -418,26 +455,37 @@ func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tl
 	}
 	wg.Wait()
 
-	// 5. Update Metadata (remove file record)
+	// 5. Update Metadata (remove file record from metadata.enc)
 	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
-	if err == nil && mResp.EncryptedDb != nil {
+	if err != nil {
+		return fmt.Errorf("failed to get metadata from coordinator: %w", err)
+	}
+	if mResp.EncryptedDb != nil {
 		db, err := metadata.DecryptMetadata(mResp.EncryptedDb, sess.GetMetaKey())
-		if err == nil {
-			if _, exists := db.Files[fileID]; exists {
-				delete(db.Files, fileID)
-				encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
-				if err == nil {
-					_, _ = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
-						EncryptedDb: encryptedDB,
-					})
-				}
+		if err != nil {
+			return fmt.Errorf("failed to decrypt metadata: %w", err)
+		}
+		if _, exists := db.Files[fileID]; exists {
+			delete(db.Files, fileID)
+			encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
+			if err != nil {
+				return fmt.Errorf("failed to encrypt updated metadata: %w", err)
+			}
+			_, err = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
+				EncryptedDb: encryptedDB,
+			})
+			if err != nil {
+				return fmt.Errorf("failed to push updated metadata to coordinator: %w", err)
 			}
 		}
 	}
 
-	// 6. Call Coordinator.DeleteMetadata to remove tracking
+	// 6. Call Coordinator.DeleteMetadata to remove persistent tracking state
 	_, err = coordinator.DeleteMetadata(context.Background(), &pb.DeleteMetadataRequest{FileId: fileID})
-	return err
+	if err != nil {
+		return fmt.Errorf("failed to delete tracking metadata: %w", err)
+	}
+	return nil
 }
 
 func (c *Client) deleteShard(endpoint, shardID string, tlsConfig *tls.Config) error {
