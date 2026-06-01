@@ -47,6 +47,23 @@ func DeriveHiddenKey(password []byte, salt []byte) []byte {
 	return argon2.IDKey(password, hiddenSalt, ArgonTime, ArgonMemory, ArgonThreads, ArgonKeyLen)
 }
 
+// DeriveHiddenOffset derives a secret offset for hidden metadata from a password and salt.
+// It ensures the offset is within the second half of the 1MB metadata blob.
+func DeriveHiddenOffset(password []byte, salt []byte) int {
+	offsetSalt := make([]byte, len(salt)+6)
+	copy(offsetSalt, salt)
+	copy(offsetSalt[len(salt):], "offset")
+	// Use Argon2 to get 4 bytes for the offset
+	hash := argon2.IDKey(password, offsetSalt, 1, 64*1024, 1, 4)
+	val := uint32(hash[0])<<24 | uint32(hash[1])<<16 | uint32(hash[2])<<8 | uint32(hash[3])
+
+	// Ensure offset is in a reasonable range (e.g., 512KB to 900KB)
+	// metadata blob is 1MB.
+	minOffset := 1024 * 512 // 512 KB
+	maxOffset := 1024 * 900 // 900 KB
+	return minOffset + int(val%uint32(maxOffset-minOffset))
+}
+
 // Encrypt encrypts plaintext using XChaCha20-Poly1305 with the given key.
 // It returns a ciphertext with the nonce prepended.
 func Encrypt(plaintext, key []byte) ([]byte, error) {

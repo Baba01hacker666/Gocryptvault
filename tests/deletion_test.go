@@ -80,26 +80,26 @@ func TestDistributedDeletion(t *testing.T) {
 	testData := []byte("Deletion test data")
 	os.WriteFile(testFile, testData, 0644)
 
-	err := c.AddFileDistributed(testFile, "delete-me.dat", coordAddr, clientTLS)
+	err := c.AddFileDistributed(testFile, "delete-me.dat", coordAddr, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("AddFileDistributed failed: %v", err)
 	}
 
 	// Verify file exists
-	files, _ := c.ListFilesDistributed(coordAddr, clientTLS)
+	files, _ := c.ListFilesDistributed(coordAddr, clientTLS, false, "")
 	if len(files) == 0 {
 		t.Fatal("File was not uploaded")
 	}
 	fileID := files[0].ID
 
 	// 6. Delete the file
-	err = c.DeleteFileDistributed(fileID, coordAddr, clientTLS)
+	err = c.DeleteFileDistributed(fileID, coordAddr, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("DeleteFileDistributed failed: %v", err)
 	}
 
 	// 7. Verify deletion from Coordinator
-	filesAfter, _ := c.ListFilesDistributed(coordAddr, clientTLS)
+	filesAfter, _ := c.ListFilesDistributed(coordAddr, clientTLS, false, "")
 	for _, f := range filesAfter {
 		if f.ID == fileID {
 			t.Error("File still exists in coordinator metadata after deletion")
@@ -174,11 +174,11 @@ func TestDistributedDeletionWithRestart(t *testing.T) {
 	// Upload
 	testFile := filepath.Join(t.TempDir(), "test.dat")
 	os.WriteFile(testFile, []byte("data for restart test"), 0644)
-	if err := c.AddFileDistributed(testFile, "test.dat", coordAddr, clientTLS); err != nil {
+	if err := c.AddFileDistributed(testFile, "test.dat", coordAddr, clientTLS, false, ""); err != nil {
 		t.Fatalf("AddFileDistributed failed: %v", err)
 	}
 	
-	files, err := c.ListFilesDistributed(coordAddr, clientTLS)
+	files, err := c.ListFilesDistributed(coordAddr, clientTLS, false, "")
 	if err != nil || len(files) == 0 {
 		t.Fatalf("ListFilesDistributed failed or returned 0 files: %v", err)
 	}
@@ -190,7 +190,7 @@ func TestDistributedDeletionWithRestart(t *testing.T) {
 	defer stopCoordFinal()
 
 	// Delete
-	err = c.DeleteFileDistributed(fileID, coordAddrFinal, clientTLS)
+	err = c.DeleteFileDistributed(fileID, coordAddrFinal, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("Delete failed after restart: %v", err)
 	}

@@ -32,7 +32,7 @@ var deleteCmd = &cobra.Command{
 			}
 			defer c.Close()
 
-			if err := c.DeleteFileDistributed(fileID, distDeleteCoord, tlsConfig); err != nil {
+			if err := c.DeleteFileDistributed(fileID, distDeleteCoord, tlsConfig, distHidden, distHiddenPass); err != nil {
 				return fmt.Errorf("distributed delete failed: %w", err)
 			}
 		} else {
@@ -53,6 +53,8 @@ func init() {
 	deleteCmd.Flags().StringVar(&distCA, "ca", "ca.crt", "CA certificate for distributed mode")
 	deleteCmd.Flags().StringVar(&distCert, "cert", "client.crt", "Client certificate for distributed mode")
 	deleteCmd.Flags().StringVar(&distKey, "key", "client.key", "Client key for distributed mode")
+	deleteCmd.Flags().BoolVar(&distHidden, "hidden", false, "Use hidden vault")
+	deleteCmd.Flags().StringVar(&distHiddenPass, "hidden-password", "", "Password for hidden vault")
 
 	rootCmd.AddCommand(deleteCmd)
 }

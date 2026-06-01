@@ -209,7 +209,7 @@ func TestDistributedIntegration(t *testing.T) {
 	testData := []byte("This is a test file for distributed storage. It should be sharded and stored across 6 nodes.")
 	os.WriteFile(testFile, testData, 0644)
 
-	err = c.AddFileDistributed(testFile, "distributed-test.dat", coordAddr, clientTLS)
+	err = c.AddFileDistributed(testFile, "distributed-test.dat", coordAddr, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("AddFileDistributed failed: %v", err)
 	}
@@ -263,7 +263,7 @@ func TestDistributedIntegration(t *testing.T) {
 	}
 
 	// 8. Test Distributed Download/Export
-	files, err := c.ListFilesDistributed(coordAddr, clientTLS)
+	files, err := c.ListFilesDistributed(coordAddr, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("ListFilesDistributed failed: %v", err)
 	}
@@ -284,7 +284,7 @@ func TestDistributedIntegration(t *testing.T) {
 	t.Logf("Found %d shard locations in download plan", len(downPlan.Locations))
 
 	outDir := t.TempDir()
-	err = c.ExportFileDistributed(fileID, outDir, coordAddr, clientTLS)
+	err = c.ExportFileDistributed(fileID, outDir, coordAddr, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("ExportFileDistributed failed: %v", err)
 	}
@@ -305,7 +305,7 @@ func TestDistributedIntegration(t *testing.T) {
 	
 	t.Log("Testing fault tolerance (2 nodes down)...")
 	outDir2 := t.TempDir()
-	err = c.ExportFileDistributed(fileID, outDir2, coordAddr, clientTLS)
+	err = c.ExportFileDistributed(fileID, outDir2, coordAddr, clientTLS, false, "")
 	if err != nil {
 		t.Fatalf("ExportFileDistributed failed with 2 nodes down: %v", err)
 	}

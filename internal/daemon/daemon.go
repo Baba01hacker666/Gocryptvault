@@ -77,6 +77,19 @@ func (d *Daemon) GetKeys(req *struct{}, reply *types.KeysReply) error {
 	return nil
 }
 
+func (d *Daemon) GetSalt(req *struct{}, reply *[]byte) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	cfg, err := config.LoadConfig(filepath.Join(d.vault.BaseDir, "config.enc"))
+	if err != nil {
+		return err
+	}
+
+	*reply = cfg.Salt
+	return nil
+}
+
 func (d *Daemon) ListFiles(req *struct{}, reply *[]*types.FileRecord) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

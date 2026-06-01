@@ -17,6 +17,8 @@ var (
 	distCA           string
 	distCert         string
 	distKey          string
+	distHidden       bool
+	distHiddenPass   string
 )
 
 var addCmd = &cobra.Command{
@@ -49,7 +51,7 @@ var addCmd = &cobra.Command{
 			}
 
 			fmt.Printf("Adding file %s in distributed mode...\n", targetPath)
-			if err := c.AddFileDistributed(targetPath, filepath.Base(targetPath), distCoordAddr, tlsConfig); err != nil {
+			if err := c.AddFileDistributed(targetPath, filepath.Base(targetPath), distCoordAddr, tlsConfig, distHidden, distHiddenPass); err != nil {
 				return fmt.Errorf("distributed add failed: %w", err)
 			}
 			fmt.Println("File added successfully in distributed mode.")
@@ -118,6 +120,8 @@ func init() {
 	addCmd.Flags().StringVar(&distCA, "ca", "ca.crt", "CA certificate for distributed mode")
 	addCmd.Flags().StringVar(&distCert, "cert", "client.crt", "Client certificate for distributed mode")
 	addCmd.Flags().StringVar(&distKey, "key", "client.key", "Client key for distributed mode")
+	addCmd.Flags().BoolVar(&distHidden, "hidden", false, "Use hidden vault")
+	addCmd.Flags().StringVar(&distHiddenPass, "hidden-password", "", "Password for hidden vault")
 
 	rootCmd.AddCommand(addCmd)
 }

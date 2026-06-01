@@ -7,6 +7,8 @@ import (
 
 // MetadataBlobSize is the fixed size for the deniable metadata blob (1MB).
 const MetadataBlobSize = 1024 * 1024
+const DecoyBlobSize = 512 * 1024
+const HiddenBlobSize = 256 * 1024
 
 // PackageDeniable packages two separate encrypted metadata databases into a single 1MB blob.
 // It fills the 1MB buffer with random data, then copies decoyBlob at the start and hiddenBlob at hiddenOffset.
@@ -30,12 +32,11 @@ func PackageDeniable(decoyBlob, hiddenBlob []byte, hiddenOffset int) ([]byte, er
 }
 
 // ExtractDecoy extracts the decoy metadata from the blob.
-// Since the exact length is unknown without decryption, it returns the blob from the start.
 func ExtractDecoy(blob []byte) ([]byte, error) {
 	if len(blob) != MetadataBlobSize {
 		return nil, fmt.Errorf("invalid metadata blob size: expected %d, got %d", MetadataBlobSize, len(blob))
 	}
-	return blob, nil
+	return blob[:DecoyBlobSize], nil
 }
 
 // ExtractHidden extracts the hidden metadata from the blob at the specified offset.
@@ -43,8 +44,8 @@ func ExtractHidden(blob []byte, hiddenOffset int) ([]byte, error) {
 	if len(blob) != MetadataBlobSize {
 		return nil, fmt.Errorf("invalid metadata blob size: expected %d, got %d", MetadataBlobSize, len(blob))
 	}
-	if hiddenOffset < 0 || hiddenOffset >= MetadataBlobSize {
+	if hiddenOffset < 0 || hiddenOffset+HiddenBlobSize > MetadataBlobSize {
 		return nil, fmt.Errorf("invalid hidden offset: %d", hiddenOffset)
 	}
-	return blob[hiddenOffset:], nil
+	return blob[hiddenOffset : hiddenOffset+HiddenBlobSize], nil
 }

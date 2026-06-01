@@ -2,6 +2,7 @@ package client
 
 import (
 	"context"
+	"crypto/rand"
 	"crypto/tls"
 	"fmt"
 	"io"
@@ -12,6 +13,7 @@ import (
 	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
+	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
 	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
@@ -20,7 +22,7 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
-func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorAddr string, tlsConfig *tls.Config) error {
+func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorAddr string, tlsConfig *tls.Config, hidden bool, hiddenPassword string) error {
 	// 1. Ensure we have keys (session)
 	sess, err := session.GetSession()
 	if err != nil {
@@ -30,6 +32,21 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		}
 		sess, _ = session.GetSession()
 	}
+
+	var metaKey []byte
+	var offset int
+	if hidden {
+		salt, err := c.GetSalt()
+		if err != nil {
+			return fmt.Errorf("failed to get salt: %w", err)
+		}
+		metaKey = crypto.DeriveHiddenKey([]byte(hiddenPassword), salt)
+		offset = crypto.DeriveHiddenOffset([]byte(hiddenPassword), salt)
+	} else {
+		metaKey = sess.GetMetaKey()
+		offset = 0
+	}
+
 
 	// 2. Read local file
 	f, err := os.Open(sourcePath)
@@ -175,25 +192,64 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 	// 5. Update Metadata
 	resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
 	var db *metadata.MetadataDB
+	var blob []byte
+
 	if err == nil && resp != nil && resp.EncryptedDb != nil {
-		db, err = metadata.DecryptMetadata(resp.EncryptedDb, sess.GetMetaKey())
-		if err != nil {
-			cleanup()
-			return fmt.Errorf("failed to decrypt metadata from coordinator: %w", err)
+		blob = resp.EncryptedDb
+		var encryptedData []byte
+		var extErr error
+		if hidden {
+			encryptedData, extErr = metadata.ExtractHidden(blob, offset)
+		} else {
+			encryptedData, extErr = metadata.ExtractDecoy(blob)
+		}
+		if extErr == nil {
+			db, err = metadata.DecryptMetadata(encryptedData, metaKey)
+			if err != nil {
+				db = metadata.NewMetadataDB()
+			}
+		} else {
+			db = metadata.NewMetadataDB()
 		}
 	} else {
 		db = metadata.NewMetadataDB()
 	}
 	db.Files[record.ID] = record
 
-	encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
+	var encryptedDB []byte
+	if hidden {
+		encryptedDB, err = metadata.EncryptMetadataDeniable(db, metaKey, metadata.HiddenBlobSize)
+	} else {
+		encryptedDB, err = metadata.EncryptMetadataDeniable(db, metaKey, metadata.DecoyBlobSize)
+	}
 	if err != nil {
 		cleanup()
 		return fmt.Errorf("failed to encrypt metadata: %w", err)
 	}
 
+	newBlob := make([]byte, metadata.MetadataBlobSize)
+	if len(blob) == metadata.MetadataBlobSize {
+		copy(newBlob, blob)
+	} else {
+		_, _ = rand.Read(newBlob)
+	}
+
+	if hidden {
+		if offset+len(encryptedDB) > metadata.MetadataBlobSize {
+			cleanup()
+			return fmt.Errorf("hidden metadata too large")
+		}
+		copy(newBlob[offset:], encryptedDB)
+	} else {
+		if len(encryptedDB) > metadata.MetadataBlobSize {
+			cleanup()
+			return fmt.Errorf("decoy metadata too large")
+		}
+		copy(newBlob[0:], encryptedDB)
+	}
+
 	_, err = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
-		EncryptedDb: encryptedDB,
+		EncryptedDb: newBlob,
 		NewFileLocations: map[string]*pb.ShardLocations{
 			record.ID: shardLocs,
 		},
@@ -245,7 +301,7 @@ func (c *Client) uploadShard(endpoint, shardID string, data []byte, tlsConfig *t
 	return nil
 }
 
-func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Config) ([]*types.FileRecord, error) {
+func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Config, hidden bool, hiddenPassword string) ([]*types.FileRecord, error) {
 	// 1. Ensure session
 	sess, err := session.GetSession()
 	if err != nil {
@@ -253,6 +309,20 @@ func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Con
 			return nil, err
 		}
 		sess, _ = session.GetSession()
+	}
+
+	var metaKey []byte
+	var offset int
+	if hidden {
+		salt, err := c.GetSalt()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get salt: %w", err)
+		}
+		metaKey = crypto.DeriveHiddenKey([]byte(hiddenPassword), salt)
+		offset = crypto.DeriveHiddenOffset([]byte(hiddenPassword), salt)
+	} else {
+		metaKey = sess.GetMetaKey()
+		offset = 0
 	}
 
 	// 2. Connect to Coordinator
@@ -273,7 +343,17 @@ func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Con
 		return []*types.FileRecord{}, nil
 	}
 
-	db, err := metadata.DecryptMetadata(resp.EncryptedDb, sess.GetMetaKey())
+	var encryptedData []byte
+	if hidden {
+		encryptedData, err = metadata.ExtractHidden(resp.EncryptedDb, offset)
+	} else {
+		encryptedData, err = metadata.ExtractDecoy(resp.EncryptedDb)
+	}
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := metadata.DecryptMetadata(encryptedData, metaKey)
 	if err != nil {
 		return nil, err
 	}
@@ -285,7 +365,7 @@ func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Con
 	return files, nil
 }
 
-func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr string, tlsConfig *tls.Config) error {
+func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr string, tlsConfig *tls.Config, hidden bool, hiddenPassword string) error {
 	// 1. Ensure session
 	sess, err := session.GetSession()
 	if err != nil {
@@ -293,6 +373,20 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 			return err
 		}
 		sess, _ = session.GetSession()
+	}
+
+	var metaKey []byte
+	var offset int
+	if hidden {
+		salt, err := c.GetSalt()
+		if err != nil {
+			return fmt.Errorf("failed to get salt: %w", err)
+		}
+		metaKey = crypto.DeriveHiddenKey([]byte(hiddenPassword), salt)
+		offset = crypto.DeriveHiddenOffset([]byte(hiddenPassword), salt)
+	} else {
+		metaKey = sess.GetMetaKey()
+		offset = 0
 	}
 
 	// 2. Connect to Coordinator
@@ -314,7 +408,18 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 	if err != nil || mResp.EncryptedDb == nil {
 		return fmt.Errorf("failed to get metadata from coordinator: %v", err)
 	}
-	db, err := metadata.DecryptMetadata(mResp.EncryptedDb, sess.GetMetaKey())
+
+	var encryptedData []byte
+	if hidden {
+		encryptedData, err = metadata.ExtractHidden(mResp.EncryptedDb, offset)
+	} else {
+		encryptedData, err = metadata.ExtractDecoy(mResp.EncryptedDb)
+	}
+	if err != nil {
+		return err
+	}
+
+	db, err := metadata.DecryptMetadata(encryptedData, metaKey)
 	if err != nil {
 		return fmt.Errorf("failed to decrypt metadata: %v", err)
 	}
@@ -416,7 +521,7 @@ func (c *Client) downloadShard(endpoint, shardID string, tlsConfig *tls.Config) 
 	return data, nil
 }
 
-func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tlsConfig *tls.Config) error {
+func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tlsConfig *tls.Config, hidden bool, hiddenPassword string) error {
 	// 1. Ensure session
 	sess, err := session.GetSession()
 	if err != nil {
@@ -424,6 +529,20 @@ func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tl
 			return err
 		}
 		sess, _ = session.GetSession()
+	}
+
+	var metaKey []byte
+	var offset int
+	if hidden {
+		salt, err := c.GetSalt()
+		if err != nil {
+			return fmt.Errorf("failed to get salt: %w", err)
+		}
+		metaKey = crypto.DeriveHiddenKey([]byte(hiddenPassword), salt)
+		offset = crypto.DeriveHiddenOffset([]byte(hiddenPassword), salt)
+	} else {
+		metaKey = sess.GetMetaKey()
+		offset = 0
 	}
 
 	// 2. Connect to Coordinator
@@ -461,21 +580,49 @@ func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tl
 		return fmt.Errorf("failed to get metadata from coordinator: %w", err)
 	}
 	if mResp.EncryptedDb != nil {
-		db, err := metadata.DecryptMetadata(mResp.EncryptedDb, sess.GetMetaKey())
-		if err != nil {
-			return fmt.Errorf("failed to decrypt metadata: %w", err)
+		blob := mResp.EncryptedDb
+		var encryptedData []byte
+		var extErr error
+		if hidden {
+			encryptedData, extErr = metadata.ExtractHidden(blob, offset)
+		} else {
+			encryptedData, extErr = metadata.ExtractDecoy(blob)
 		}
-		if _, exists := db.Files[fileID]; exists {
-			delete(db.Files, fileID)
-			encryptedDB, err := metadata.EncryptMetadata(db, sess.GetMetaKey())
-			if err != nil {
-				return fmt.Errorf("failed to encrypt updated metadata: %w", err)
-			}
-			_, err = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
-				EncryptedDb: encryptedDB,
-			})
-			if err != nil {
-				return fmt.Errorf("failed to push updated metadata to coordinator: %w", err)
+
+		if extErr == nil {
+			db, err := metadata.DecryptMetadata(encryptedData, metaKey)
+			if err == nil {
+				if _, exists := db.Files[fileID]; exists {
+					delete(db.Files, fileID)
+					var encryptedDB []byte
+					if hidden {
+						encryptedDB, err = metadata.EncryptMetadataDeniable(db, metaKey, metadata.HiddenBlobSize)
+					} else {
+						encryptedDB, err = metadata.EncryptMetadataDeniable(db, metaKey, metadata.DecoyBlobSize)
+					}
+					if err == nil {
+						newBlob := make([]byte, metadata.MetadataBlobSize)
+						if len(blob) == metadata.MetadataBlobSize {
+							copy(newBlob, blob)
+						} else {
+							_, _ = rand.Read(newBlob)
+						}
+
+						if hidden {
+							if offset+len(encryptedDB) <= metadata.MetadataBlobSize {
+								copy(newBlob[offset:], encryptedDB)
+							}
+						} else {
+							if len(encryptedDB) <= metadata.MetadataBlobSize {
+								copy(newBlob[0:], encryptedDB)
+							}
+						}
+
+						_, _ = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
+							EncryptedDb: newBlob,
+						})
+					}
+				}
 			}
 		}
 	}

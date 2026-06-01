@@ -12,8 +12,8 @@ import (
 )
 
 var (
-	distList      bool
-	distListCoord string
+	distList       bool
+	distListCoord  string
 )
 
 var listCmd = &cobra.Command{
@@ -35,7 +35,7 @@ var listCmd = &cobra.Command{
 			}
 			defer c.Close()
 
-			files, err = c.ListFilesDistributed(distListCoord, tlsConfig)
+			files, err = c.ListFilesDistributed(distListCoord, tlsConfig, distHidden, distHiddenPass)
 			if err != nil {
 				return fmt.Errorf("distributed list failed: %w", err)
 			}
@@ -70,6 +70,8 @@ func init() {
 	listCmd.Flags().StringVar(&distCA, "ca", "ca.crt", "CA certificate for distributed mode")
 	listCmd.Flags().StringVar(&distCert, "cert", "client.crt", "Client certificate for distributed mode")
 	listCmd.Flags().StringVar(&distKey, "key", "client.key", "Client key for distributed mode")
+	listCmd.Flags().BoolVar(&distHidden, "hidden", false, "Use hidden vault")
+	listCmd.Flags().StringVar(&distHiddenPass, "hidden-password", "", "Password for hidden vault")
 
 	rootCmd.AddCommand(listCmd)
 }

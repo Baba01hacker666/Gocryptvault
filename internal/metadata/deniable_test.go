@@ -53,12 +53,12 @@ func TestDeniableFullFlow(t *testing.T) {
 	offset := 512 * 1024
 
 	// Encrypt with padding
-	encDecoy, err := EncryptMetadataDeniable(dbDecoy, keyDecoy, offset)
+	encDecoy, err := EncryptMetadataDeniable(dbDecoy, keyDecoy, DecoyBlobSize)
 	if err != nil {
 		t.Fatalf("EncryptMetadataDeniable (decoy) failed: %v", err)
 	}
 
-	encHidden, err := EncryptMetadataDeniable(dbHidden, keyHidden, MetadataBlobSize-offset)
+	encHidden, err := EncryptMetadataDeniable(dbHidden, keyHidden, HiddenBlobSize)
 	if err != nil {
 		t.Fatalf("EncryptMetadataDeniable (hidden) failed: %v", err)
 	}
@@ -70,9 +70,10 @@ func TestDeniableFullFlow(t *testing.T) {
 	}
 
 	// Extract and Decrypt Decoy
-	// Note: ExtractDecoy returns the whole 1MB, but our Decoy was padded to offset.
-	// Since we know hiddenOffset, we use it.
-	extDecoy := blob[:offset]
+	extDecoy, err := ExtractDecoy(blob)
+	if err != nil {
+		t.Fatalf("ExtractDecoy failed: %v", err)
+	}
 	decDecoy, err := DecryptMetadata(extDecoy, keyDecoy)
 	if err != nil {
 		t.Fatalf("DecryptMetadata (decoy) failed: %v", err)

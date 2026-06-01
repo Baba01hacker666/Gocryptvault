@@ -33,6 +33,15 @@ func (c *Client) Unlock(password []byte) (bool, error) {
 	return reply, nil
 }
 
+func (c *Client) GetSalt() ([]byte, error) {
+	var salt []byte
+	err := c.RPC.Call("VaultDaemon.GetSalt", &struct{}{}, &salt)
+	if err != nil {
+		return nil, fmt.Errorf("client: failed to get salt: %w", err)
+	}
+	return salt, nil
+}
+
 func (c *Client) IsUnlocked() (bool, error) {
 	var reply types.StatusReply
 	err := c.RPC.Call("VaultDaemon.Status", &struct{}{}, &reply)

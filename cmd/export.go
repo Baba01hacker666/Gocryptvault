@@ -39,7 +39,7 @@ var exportCmd = &cobra.Command{
 			defer c.Close()
 
 			fmt.Printf("Exporting file %s in distributed mode...\n", fileID)
-			if err := c.ExportFileDistributed(fileID, outDir, distExportCoord, tlsConfig); err != nil {
+			if err := c.ExportFileDistributed(fileID, outDir, distExportCoord, tlsConfig, distHidden, distHiddenPass); err != nil {
 				return fmt.Errorf("distributed export failed: %w", err)
 			}
 		} else {
@@ -61,6 +61,8 @@ func init() {
 	exportCmd.Flags().StringVar(&distCA, "ca", "ca.crt", "CA certificate for distributed mode")
 	exportCmd.Flags().StringVar(&distCert, "cert", "client.crt", "Client certificate for distributed mode")
 	exportCmd.Flags().StringVar(&distKey, "key", "client.key", "Client key for distributed mode")
+	exportCmd.Flags().BoolVar(&distHidden, "hidden", false, "Use hidden vault")
+	exportCmd.Flags().StringVar(&distHiddenPass, "hidden-password", "", "Password for hidden vault")
 
 	rootCmd.AddCommand(exportCmd)
 }
