@@ -7,26 +7,16 @@ import (
 	"path/filepath"
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
-type FileRecord struct {
-	ID         string   `json:"id"`
-	Filename   string   `json:"filename"`
-	Size       int64    `json:"size"`
-	MimeType   string   `json:"mime_type"`
-	Compressed bool     `json:"compressed"`
-	Chunks     []string `json:"chunks"`
-	Created    int64    `json:"created"`
-	Modified   int64    `json:"modified"`
-}
-
 type MetadataDB struct {
-	Files map[string]*FileRecord `json:"files"`
+	Files map[string]*types.FileRecord `json:"files"`
 }
 
 func NewMetadataDB() *MetadataDB {
 	return &MetadataDB{
-		Files: make(map[string]*FileRecord),
+		Files: make(map[string]*types.FileRecord),
 	}
 }
 
@@ -54,7 +44,7 @@ func LoadEncryptedMetadata(path string, key []byte) (*MetadataDB, error) {
 	}
 
 	if db.Files == nil {
-		db.Files = make(map[string]*FileRecord)
+		db.Files = make(map[string]*types.FileRecord)
 	}
 
 	return &db, nil

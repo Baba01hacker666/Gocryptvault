@@ -1,10 +1,12 @@
 package metadata
 
 import (
-	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
 	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
 func TestNewMetadataDB(t *testing.T) {
@@ -34,7 +36,7 @@ func TestSaveAndLoadEncryptedMetadata(t *testing.T) {
 	}
 
 	// 2. Save DB
-	db.Files["file1"] = &FileRecord{
+	db.Files["file1"] = &types.FileRecord{
 		ID:       "file1",
 		Filename: "test.txt",
 		Size:     100,

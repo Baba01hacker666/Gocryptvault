@@ -3,18 +3,18 @@ package daemon
 import (
 	"fmt"
 
-	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
-func ListFilesRPC() ([]*metadata.FileRecord, error) {
+func ListFilesRPC() ([]*types.FileRecord, error) {
 	client, err := ConnectRPC()
 	if err != nil {
 		return nil, err
 	}
 	defer client.Close()
 
-	var reply []*metadata.FileRecord
+	var reply []*types.FileRecord
 	err = client.Call("VaultDaemon.ListFiles", &struct{}{}, &reply)
 	if err != nil {
 		return nil, err
@@ -35,7 +35,7 @@ func EnsureLocalSession() error {
 	}
 	defer client.Close()
 
-	var reply KeysReply
+	var reply types.KeysReply
 	err = client.Call("VaultDaemon.GetKeys", &struct{}{}, &reply)
 	if err != nil {
 		return fmt.Errorf("vault is locked or failed to get keys from daemon: %w", err)

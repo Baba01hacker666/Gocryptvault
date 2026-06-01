@@ -8,10 +8,10 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 )
@@ -162,7 +162,7 @@ func (fh *FileHandle) Read(ctx context.Context, dest []byte, off int64) (fuse.Re
 		return nil, syscall.EIO
 	}
 
-	var record *metadata.FileRecord
+	var record *types.FileRecord
 	for _, r := range files {
 		if r.ID == fh.RecordID {
 			record = r

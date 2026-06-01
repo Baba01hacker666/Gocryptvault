@@ -18,6 +18,9 @@ type Config struct {
 }
 
 func GetVaultPath() string {
+	if p := os.Getenv("GOCRYPTVAULT_PATH"); p != "" {
+		return p
+	}
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return "./.vaultfs" // fallback

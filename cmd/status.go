@@ -7,6 +7,7 @@ import (
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/config"
 	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -29,7 +30,7 @@ var statusCmd = &cobra.Command{
 		}
 		defer client.Close()
 
-		var reply daemon.StatusReply
+		var reply types.StatusReply
 		err = client.Call("VaultDaemon.Status", &struct{}{}, &reply)
 		if err != nil {
 			fmt.Println("Status: Locked (Daemon error)")

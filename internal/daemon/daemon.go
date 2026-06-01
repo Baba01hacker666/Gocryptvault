@@ -13,28 +13,18 @@ import (
 	"time"
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/config"
-	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
-const SocketName = "github.com/Baba01hacker666/Gocryptvault.sock"
+const SocketName = "gocryptvault.sock"
 const AutoLockTimeout = 15 * time.Minute
 
 type Daemon struct {
 	vault        *storage.Vault
 	mu           sync.Mutex
 	lastActivity time.Time
-}
-
-type KeysReply struct {
-	MasterKey []byte
-	MetaKey   []byte
-}
-
-type StatusReply struct {
-	Unlocked      bool
-	TimeUntilLock string
 }
 
 func NewDaemon(vault *storage.Vault) *Daemon {
@@ -71,7 +61,7 @@ func (d *Daemon) Unlock(password []byte, reply *bool) error {
 	return nil
 }
 
-func (d *Daemon) GetKeys(req *struct{}, reply *KeysReply) error {
+func (d *Daemon) GetKeys(req *struct{}, reply *types.KeysReply) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -87,7 +77,7 @@ func (d *Daemon) GetKeys(req *struct{}, reply *KeysReply) error {
 	return nil
 }
 
-func (d *Daemon) ListFiles(req *struct{}, reply *[]*metadata.FileRecord) error {
+func (d *Daemon) ListFiles(req *struct{}, reply *[]*types.FileRecord) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -101,7 +91,7 @@ func (d *Daemon) ListFiles(req *struct{}, reply *[]*metadata.FileRecord) error {
 	return nil
 }
 
-func (d *Daemon) GetFile(fileID string, reply *metadata.FileRecord) error {
+func (d *Daemon) GetFile(fileID string, reply *types.FileRecord) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
@@ -121,6 +111,34 @@ func (d *Daemon) GetFile(fileID string, reply *metadata.FileRecord) error {
 	return fmt.Errorf("file not found")
 }
 
+func (d *Daemon) AddFile(args *types.AddFileArgs, reply *bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	err := d.vault.AddFile(args.SourcePath, args.LogicalName)
+	if err != nil {
+		*reply = false
+		return err
+	}
+	*reply = true
+	d.lastActivity = time.Now()
+	return nil
+}
+
+func (d *Daemon) ExportFile(args *types.ExportFileArgs, reply *bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	err := d.vault.ExportFile(args.FileID, args.DestDir)
+	if err != nil {
+		*reply = false
+		return err
+	}
+	*reply = true
+	d.lastActivity = time.Now()
+	return nil
+}
+
 func (d *Daemon) Lock(req *struct{}, reply *bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -130,7 +148,7 @@ func (d *Daemon) Lock(req *struct{}, reply *bool) error {
 	return nil
 }
 
-func (d *Daemon) Status(req *struct{}, reply *StatusReply) error {
+func (d *Daemon) Status(req *struct{}, reply *types.StatusReply) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 

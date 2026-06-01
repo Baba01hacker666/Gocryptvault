@@ -18,6 +18,7 @@ import (
 	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
 var (
@@ -218,7 +219,7 @@ func (v *Vault) AddFile(sourcePath string, logicalName string) error {
 		numChunks = 1
 	}
 
-	record := &metadata.FileRecord{
+	record := &types.FileRecord{
 		ID: v.generateUUID(),
 		Filename: func() string {
 			if logicalName != "" {
@@ -453,7 +454,7 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 	return nil
 }
 
-func (v *Vault) ListFiles() ([]*metadata.FileRecord, error) {
+func (v *Vault) ListFiles() ([]*types.FileRecord, error) {
 	v.mu.Lock()
 	defer v.mu.Unlock()
 
@@ -462,7 +463,7 @@ func (v *Vault) ListFiles() ([]*metadata.FileRecord, error) {
 		return nil, err
 	}
 
-	var files []*metadata.FileRecord
+	var files []*types.FileRecord
 	for _, f := range db.Files {
 		files = append(files, f)
 	}
