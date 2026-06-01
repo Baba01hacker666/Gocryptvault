@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
 	"github.com/Baba01hacker666/Gocryptvault/internal/node"
@@ -25,6 +26,23 @@ var (
 	nodeRegister  bool
 )
 
+func startHeartbeats(ctx context.Context, client pb.CoordinatorClient, nodeID string) {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-ticker.C:
+			_, err := client.Heartbeat(ctx, &pb.HeartbeatRequest{NodeId: nodeID})
+			if err != nil {
+				log.Printf("Warning: heartbeat failed for node %s: %v", nodeID, err)
+			}
+		}
+	}
+}
+
 var nodeCmd = &cobra.Command{
 	Use:   "node",
 	Short: "Start a distributed vault storage node",
@@ -44,7 +62,6 @@ var nodeCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator for registration: %w", err)
 			}
-			defer conn.Close()
 			
 			coord := pb.NewCoordinatorClient(conn)
 			_, err = coord.RegisterNode(context.Background(), &pb.NodeInfo{
@@ -56,6 +73,9 @@ var nodeCmd = &cobra.Command{
 				return fmt.Errorf("registration failed: %w", err)
 			}
 			fmt.Printf("Node %s registered with coordinator at %s\n", nodeID, nodeCoordAddr)
+
+			// Start background heartbeats
+			go startHeartbeats(context.Background(), coord, nodeID)
 		}
 
 		lis, err := net.Listen("tcp", nodeAddr)
