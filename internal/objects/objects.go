@@ -11,21 +11,52 @@ import (
 	"path/filepath"
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/crypto"
+	"github.com/klauspost/reedsolomon"
 )
 
 const ChunkSize = 4 * 1024 * 1024 // 4 MB
+const DataShards = 4
+const ParityShards = 2
 
-// StoreChunk encrypts a chunk and saves it in the objects directory.
-// Returns the hex-encoded SHA-256 hash of the ciphertext (which is used as the chunk ID).
-func StoreChunk(objectsDir string, plaintext []byte, key []byte) (string, error) {
+func ShardData(data []byte) ([][]byte, error) {
+	enc, err := reedsolomon.New(DataShards, ParityShards)
+	if err != nil {
+		return nil, err
+	}
+	shards, err := enc.Split(data)
+	if err != nil {
+		return nil, err
+	}
+	if err := enc.Encode(shards); err != nil {
+		return nil, err
+	}
+	return shards, nil
+}
+
+func ReconstructData(shards [][]byte, originalSize int) ([]byte, error) {
+	enc, err := reedsolomon.New(DataShards, ParityShards)
+	if err != nil {
+		return nil, err
+	}
+	if err := enc.Reconstruct(shards); err != nil {
+		return nil, err
+	}
+	var b bytes.Buffer
+	if err := enc.Join(&b, shards, originalSize); err != nil {
+		return nil, err
+	}
+	return b.Bytes(), nil
+}
+
+func compressAndEncrypt(plaintext []byte, key []byte) ([]byte, error) {
 	// Compress data
 	var b bytes.Buffer
 	zw, _ := flate.NewWriter(&b, flate.BestSpeed)
 	if _, err := zw.Write(plaintext); err != nil {
-		return "", fmt.Errorf("failed to compress chunk: %w", err)
+		return nil, fmt.Errorf("failed to compress data: %w", err)
 	}
 	if err := zw.Close(); err != nil {
-		return "", fmt.Errorf("failed to close compressor: %w", err)
+		return nil, fmt.Errorf("failed to close compressor: %w", err)
 	}
 
 	compressedData := b.Bytes()
@@ -44,7 +75,112 @@ func StoreChunk(objectsDir string, plaintext []byte, key []byte) (string, error)
 
 	ciphertext, err := crypto.Encrypt(finalData, key)
 	if err != nil {
-		return "", fmt.Errorf("failed to encrypt chunk: %w", err)
+		return nil, fmt.Errorf("failed to encrypt data: %w", err)
+	}
+	return ciphertext, nil
+}
+
+func decryptAndDecompress(ciphertext []byte, key []byte) ([]byte, error) {
+	decryptedData, err := crypto.Decrypt(ciphertext, key)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt ciphertext: %w", err)
+	}
+
+	if len(decryptedData) == 0 {
+		return nil, fmt.Errorf("decrypted data is empty")
+	}
+
+	isCompressed := decryptedData[0] == 1
+	payload := decryptedData[1:]
+
+	if isCompressed {
+		zr := flate.NewReader(bytes.NewReader(payload))
+		decompressedData, err := io.ReadAll(zr)
+		zr.Close()
+		if err != nil {
+			return nil, fmt.Errorf("failed to decompress data: %w", err)
+		}
+		return decompressedData, nil
+	}
+
+	return payload, nil
+}
+
+// StoreShards compresses, encrypts, and shards data using Reed-Solomon erasure coding.
+// Returns a list of shard IDs and the size of the ciphertext before sharding.
+func StoreShards(objectsDir string, plaintext []byte, key []byte) ([]string, int, error) {
+	ciphertext, err := compressAndEncrypt(plaintext, key)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	shards, err := ShardData(ciphertext)
+	if err != nil {
+		return nil, 0, fmt.Errorf("failed to shard ciphertext: %w", err)
+	}
+
+	shardIDs := make([]string, len(shards))
+	for i, shard := range shards {
+		hash := sha256.Sum256(shard)
+		shardID := hex.EncodeToString(hash[:])
+		shardIDs[i] = shardID
+
+		subDir := shardID[:2]
+		shardDir := filepath.Join(objectsDir, subDir)
+		if err := os.MkdirAll(shardDir, 0700); err != nil {
+			return nil, 0, fmt.Errorf("failed to create shard directory: %w", err)
+		}
+
+		shardPath := filepath.Join(shardDir, shardID)
+		if _, err := os.Stat(shardPath); err == nil {
+			continue // Already exists
+		}
+
+		tempPath := filepath.Join(shardDir, shardID+".tmp")
+		if err := os.WriteFile(tempPath, shard, 0600); err != nil {
+			return nil, 0, fmt.Errorf("failed to write shard file: %w", err)
+		}
+		if err := os.Rename(tempPath, shardPath); err != nil {
+			os.Remove(tempPath)
+			return nil, 0, fmt.Errorf("failed to rename temp shard file: %w", err)
+		}
+	}
+
+	return shardIDs, len(ciphertext), nil
+}
+
+// RetrieveShards reconstructs, decrypts, and decompresses data from shards.
+func RetrieveShards(objectsDir string, shardIDs []string, key []byte, originalCiphertextSize int) ([]byte, error) {
+	shards := make([][]byte, len(shardIDs))
+	for i, shardID := range shardIDs {
+		if len(shardID) < 2 {
+			shards[i] = nil
+			continue
+		}
+		subDir := shardID[:2]
+		shardPath := filepath.Join(objectsDir, subDir, shardID)
+		data, err := os.ReadFile(shardPath)
+		if err != nil {
+			shards[i] = nil
+		} else {
+			shards[i] = data
+		}
+	}
+
+	ciphertext, err := ReconstructData(shards, originalCiphertextSize)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reconstruct ciphertext: %w", err)
+	}
+
+	return decryptAndDecompress(ciphertext, key)
+}
+
+// StoreChunk encrypts a chunk and saves it in the objects directory.
+// Deprecated: Use StoreShards instead.
+func StoreChunk(objectsDir string, plaintext []byte, key []byte) (string, error) {
+	ciphertext, err := compressAndEncrypt(plaintext, key)
+	if err != nil {
+		return "", err
 	}
 
 	hash := sha256.Sum256(ciphertext)
@@ -78,6 +214,7 @@ func StoreChunk(objectsDir string, plaintext []byte, key []byte) (string, error)
 }
 
 // RetrieveChunk reads an encrypted chunk from disk and decrypts it.
+// Deprecated: Use RetrieveShards instead.
 func RetrieveChunk(objectsDir string, chunkID string, key []byte, hasHeader bool) ([]byte, error) {
 	if len(chunkID) < 2 {
 		return nil, fmt.Errorf("invalid chunk ID")
@@ -91,34 +228,12 @@ func RetrieveChunk(objectsDir string, chunkID string, key []byte, hasHeader bool
 		return nil, fmt.Errorf("failed to read chunk %s: %w", chunkID, err)
 	}
 
-	decryptedData, err := crypto.Decrypt(ciphertext, key)
-	if err != nil {
-		return nil, fmt.Errorf("failed to decrypt chunk %s: %w", chunkID, err)
-	}
-
-	if len(decryptedData) == 0 {
-		return nil, fmt.Errorf("decrypted data is empty")
-	}
-
 	if !hasHeader {
 		// Old chunks without compression header
-		return decryptedData, nil
+		return crypto.Decrypt(ciphertext, key)
 	}
 
-	isCompressed := decryptedData[0] == 1
-	payload := decryptedData[1:]
-
-	if isCompressed {
-		zr := flate.NewReader(bytes.NewReader(payload))
-		decompressedData, err := io.ReadAll(zr)
-		zr.Close()
-		if err != nil {
-			return nil, fmt.Errorf("failed to decompress chunk: %w", err)
-		}
-		return decompressedData, nil
-	}
-
-	return payload, nil
+	return decryptAndDecompress(ciphertext, key)
 }
 
 // DeleteChunk removes a chunk from disk securely.
