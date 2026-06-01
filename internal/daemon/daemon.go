@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/config"
+	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
 )
@@ -84,6 +85,40 @@ func (d *Daemon) GetKeys(req *struct{}, reply *KeysReply) error {
 	d.lastActivity = time.Now()
 
 	return nil
+}
+
+func (d *Daemon) ListFiles(req *struct{}, reply *[]*metadata.FileRecord) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	files, err := d.vault.ListFiles()
+	if err != nil {
+		return err
+	}
+
+	*reply = files
+	d.lastActivity = time.Now()
+	return nil
+}
+
+func (d *Daemon) GetFile(fileID string, reply *metadata.FileRecord) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	files, err := d.vault.ListFiles()
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if f.ID == fileID {
+			*reply = *f
+			d.lastActivity = time.Now()
+			return nil
+		}
+	}
+
+	return fmt.Errorf("file not found")
 }
 
 func (d *Daemon) Lock(req *struct{}, reply *bool) error {
