@@ -1,6 +1,7 @@
 package metadata
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -29,6 +30,28 @@ func EncryptMetadata(db *MetadataDB, key []byte) ([]byte, error) {
 	return crypto.Encrypt(data, key)
 }
 
+// EncryptMetadataDeniable encrypts metadata and pads it to a fixed size.
+func EncryptMetadataDeniable(db *MetadataDB, key []byte, size int) ([]byte, error) {
+	data, err := json.Marshal(db)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+
+	nonceSize := 24 // XChaCha20-Poly1305 nonce size
+	tagSize := 16   // Poly1305 tag size
+	maxPlaintextSize := size - nonceSize - tagSize
+
+	if len(data) > maxPlaintextSize {
+		return nil, fmt.Errorf("metadata too large for fixed size %d", size)
+	}
+
+	// Pad with null bytes
+	paddedData := make([]byte, maxPlaintextSize)
+	copy(paddedData, data)
+
+	return crypto.Encrypt(paddedData, key)
+}
+
 func DecryptMetadata(encryptedData []byte, key []byte) (*MetadataDB, error) {
 	if len(encryptedData) == 0 {
 		return NewMetadataDB(), nil
@@ -38,6 +61,9 @@ func DecryptMetadata(encryptedData []byte, key []byte) (*MetadataDB, error) {
 	if err != nil {
 		return nil, fmt.Errorf("failed to decrypt metadata: %w", err)
 	}
+
+	// Trim null padding
+	data = bytes.TrimRight(data, "\x00")
 
 	var db MetadataDB
 	if err := json.Unmarshal(data, &db); err != nil {
@@ -80,3 +106,25 @@ func SaveEncryptedMetadata(path string, db *MetadataDB, key []byte) error {
 
 	return nil
 }
+
+// LoadDeniableMetadata loads metadata from a 1MB deniable blob.
+func LoadDeniableMetadata(path string, key []byte, offset int) (*MetadataDB, error) {
+	blob, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read deniable blob: %w", err)
+	}
+
+	var encryptedData []byte
+	if offset == 0 {
+		encryptedData, err = ExtractDecoy(blob)
+	} else {
+		encryptedData, err = ExtractHidden(blob, offset)
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return DecryptMetadata(encryptedData, key)
+}
+

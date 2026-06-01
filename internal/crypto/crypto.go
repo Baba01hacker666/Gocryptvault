@@ -38,6 +38,15 @@ func DeriveKey(password []byte, salt []byte) []byte {
 	return argon2.IDKey(password, salt, ArgonTime, ArgonMemory, ArgonThreads, ArgonKeyLen)
 }
 
+// DeriveHiddenKey derives a separate key for hidden metadata from a password and salt.
+// It uses the same password but appends a fixed "hidden" label to the salt.
+func DeriveHiddenKey(password []byte, salt []byte) []byte {
+	hiddenSalt := make([]byte, len(salt)+6)
+	copy(hiddenSalt, salt)
+	copy(hiddenSalt[len(salt):], "hidden")
+	return argon2.IDKey(password, hiddenSalt, ArgonTime, ArgonMemory, ArgonThreads, ArgonKeyLen)
+}
+
 // Encrypt encrypts plaintext using XChaCha20-Poly1305 with the given key.
 // It returns a ciphertext with the nonce prepended.
 func Encrypt(plaintext, key []byte) ([]byte, error) {

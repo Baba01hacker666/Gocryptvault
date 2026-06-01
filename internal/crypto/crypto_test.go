@@ -66,6 +66,28 @@ func TestDeriveKey(t *testing.T) {
 	}
 }
 
+func TestDeriveHiddenKey(t *testing.T) {
+	password := []byte("password123")
+	salt := []byte("somesalt12345678")
+
+	key1 := DeriveKey(password, salt)
+	hiddenKey := DeriveHiddenKey(password, salt)
+
+	if len(hiddenKey) != ArgonKeyLen {
+		t.Errorf("expected key length %d, got %d", ArgonKeyLen, len(hiddenKey))
+	}
+
+	if bytes.Equal(key1, hiddenKey) {
+		t.Errorf("Hidden key should be different from master key")
+	}
+
+	// Deterministic check
+	hiddenKey2 := DeriveHiddenKey(password, salt)
+	if !bytes.Equal(hiddenKey, hiddenKey2) {
+		t.Errorf("DeriveHiddenKey should be deterministic")
+	}
+}
+
 func TestDecryptInvalid(t *testing.T) {
 	key, _ := GenerateRandomBytes(KeyLen)
 	plaintext := []byte("secret")
