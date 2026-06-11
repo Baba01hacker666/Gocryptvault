@@ -1,6 +1,7 @@
 package daemon
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"net"
@@ -25,25 +26,44 @@ type Daemon struct {
 	vault        *storage.Vault
 	mu           sync.Mutex
 	lastActivity time.Time
+	quit         chan struct{} // FIXED HIGH-04: goroutine now has a shutdown path
 }
 
 func NewDaemon(vault *storage.Vault) *Daemon {
 	d := &Daemon{
 		vault: vault,
+		quit:  make(chan struct{}),
 	}
 	go d.autoLockRoutine()
 	return d
 }
 
+// Stop signals the autoLockRoutine to exit cleanly.
+func (d *Daemon) Stop() {
+	close(d.quit)
+}
+
+// FIXED HIGH-04: autoLockRoutine now exits cleanly via quit channel.
+// FIXED MED-09: session lock is NOT held inside d.mu to avoid lock-order deadlock.
 func (d *Daemon) autoLockRoutine() {
+	ticker := time.NewTicker(1 * time.Minute)
+	defer ticker.Stop()
 	for {
-		time.Sleep(1 * time.Minute)
-		d.mu.Lock()
-		if session.IsUnlocked() && time.Since(d.lastActivity) > AutoLockTimeout {
-			log.Println("Auto-locking vault due to inactivity...")
-			session.DestroySession()
+		select {
+		case <-d.quit:
+			return
+		case <-ticker.C:
+			// Read lastActivity under d.mu, then release before touching session
+			d.mu.Lock()
+			elapsed := time.Since(d.lastActivity)
+			d.mu.Unlock()
+
+			// session has its own internal lock; do NOT hold d.mu here
+			if session.IsUnlocked() && elapsed > AutoLockTimeout {
+				log.Println("Auto-locking vault due to inactivity...")
+				session.DestroySession()
+			}
 		}
-		d.mu.Unlock()
 	}
 }
 
@@ -61,21 +81,9 @@ func (d *Daemon) Unlock(password []byte, reply *bool) error {
 	return nil
 }
 
-func (d *Daemon) GetKeys(req *struct{}, reply *types.KeysReply) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	sess, err := session.GetSessionLocal()
-	if err != nil {
-		return err
-	}
-
-	reply.MasterKey = sess.GetMasterKey()
-	reply.MetaKey = sess.GetMetaKey()
-	d.lastActivity = time.Now()
-
-	return nil
-}
+// FIXED CRIT-01: GetKeys is REMOVED. Raw key material must never leave the daemon.
+// All vault operations are performed by the daemon on behalf of clients; results
+// (decrypted file content, listings) are returned — never the keys themselves.
 
 func (d *Daemon) GetSalt(req *struct{}, reply *[]byte) error {
 	d.mu.Lock()
@@ -201,26 +209,32 @@ func RunServer() error {
 	if err != nil {
 		return fmt.Errorf("listen error: %w", err)
 	}
-	defer l.Close()
-	defer os.Remove(socketPath)
 
-	// Ensure secure permissions
+	// Ensure secure permissions on the socket file
 	if err := os.Chmod(socketPath, 0600); err != nil {
+		l.Close()
+		os.Remove(socketPath)
 		return fmt.Errorf("chmod error: %w", err)
 	}
 
+	// FIXED LOW-02: use context cancel instead of os.Exit so defers run correctly.
+	ctx, cancel := context.WithCancel(context.Background())
 	sigc := make(chan os.Signal, 1)
 	signal.Notify(sigc, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		<-sigc
 		log.Println("Shutting down daemon...")
+		cancel()
+		d.Stop()
 		l.Close()
 		session.DestroySession()
-		os.Exit(0)
+		os.Remove(socketPath)
 	}()
 
 	log.Printf("Vault daemon listening on %s", socketPath)
-	rpc.Accept(l)
+	go rpc.Accept(l)
+
+	<-ctx.Done()
 	return nil
 }
 

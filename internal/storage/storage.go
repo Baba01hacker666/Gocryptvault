@@ -374,18 +374,47 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 		return ErrFileNotFound
 	}
 
-	// Make sure outPath is a directory, append filename
-	dest := filepath.Join(outPath, record.Filename)
-
-	if err := os.MkdirAll(filepath.Dir(dest), 0755); err != nil {
-		return err
+	// FIXED CRIT-02: sanitize the filename from metadata to prevent path traversal.
+	// Use only the base name — never allow directory components from stored metadata.
+	safeFilename := filepath.Base(record.Filename)
+	if safeFilename == "." || safeFilename == "" {
+		safeFilename = "exported_file"
 	}
 
-	out, err := os.Create(dest)
+	// Resolve the absolute output directory and verify the final path stays inside it.
+	absOut, err := filepath.Abs(outPath)
 	if err != nil {
 		return err
 	}
-	defer out.Close()
+	dest := filepath.Join(absOut, safeFilename)
+	absDest, err := filepath.Abs(dest)
+	if err != nil {
+		return err
+	}
+	if len(absDest) <= len(absOut) || absDest[:len(absOut)+1] != absOut+string(filepath.Separator) {
+		return fmt.Errorf("export path traversal detected: %q escapes output directory", record.Filename)
+	}
+
+	// FIXED HIGH-09: use 0700 for output directory, 0600 for the output file.
+	if err := os.MkdirAll(filepath.Dir(dest), 0700); err != nil {
+		return err
+	}
+
+	// Write to a temp file first; rename atomically on success so a partial
+	// plaintext file is never left on disk if decryption fails mid-way.
+	tmpDest := dest + ".tmp"
+	out, err := os.OpenFile(tmpDest, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return err
+	}
+	// Ensure temp file is cleaned up on any failure path.
+	var exportErr error
+	defer func() {
+		out.Close()
+		if exportErr != nil {
+			os.Remove(tmpDest)
+		}
+	}()
 
 	masterKey := sess.GetMasterKey()
 	objectsDir := filepath.Join(v.BaseDir, "objects")
