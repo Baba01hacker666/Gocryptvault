@@ -22,10 +22,12 @@ import (
 const SocketName = "gocryptvault.sock"
 type Daemon struct {
 	vault           *storage.Vault
-	mu              sync.Mutex
+	mu              sync.RWMutex // Change to RWMutex so concurrent ops can happen
 	lastActivity    time.Time
 	quit            chan struct{}
 	autoLockTimeout time.Duration
+	activeOps       sync.WaitGroup
+	shuttingDown    bool
 }
 
 func NewDaemon(vault *storage.Vault, timeout time.Duration) *Daemon {
@@ -59,9 +61,14 @@ func (d *Daemon) autoLockRoutine() {
 			d.mu.Unlock()
 
 			// session has its own internal lock; do NOT hold d.mu here
-			if session.IsUnlocked() && elapsed > d.autoLockTimeout && d.autoLockTimeout > 0 {
+			// However, check if we need to auto-lock
+			d.mu.RLock()
+			needsLock := session.IsUnlocked() && elapsed > d.autoLockTimeout && d.autoLockTimeout > 0
+			d.mu.RUnlock()
+
+			if needsLock {
 				log.Println("Auto-locking vault due to inactivity...")
-				session.DestroySession()
+				d.LockVault()
 			}
 		}
 	}
@@ -71,6 +78,10 @@ func (d *Daemon) Unlock(password []byte, reply *bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
+	if d.shuttingDown {
+		return fmt.Errorf("daemon is shutting down")
+	}
+
 	err := d.vault.Unlock(password)
 	if err != nil {
 		*reply = false
@@ -79,6 +90,23 @@ func (d *Daemon) Unlock(password []byte, reply *bool) error {
 	d.lastActivity = time.Now()
 	*reply = true
 	return nil
+}
+
+func (d *Daemon) beginOp() error {
+	d.mu.RLock()
+	defer d.mu.RUnlock()
+	if d.shuttingDown {
+		return fmt.Errorf("daemon is shutting down")
+	}
+	d.activeOps.Add(1)
+	return nil
+}
+
+func (d *Daemon) endOp() {
+	d.mu.Lock()
+	d.lastActivity = time.Now()
+	d.mu.Unlock()
+	d.activeOps.Done()
 }
 
 // FIXED CRIT-01: GetKeys is REMOVED. Raw key material must never leave the daemon.
@@ -99,8 +127,8 @@ func (d *Daemon) GetSalt(req *struct{}, reply *[]byte) error {
 }
 
 func (d *Daemon) ListFiles(req *struct{}, reply *[]*types.FileRecord) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	if err := d.beginOp(); err != nil { return err }
+	defer d.endOp()
 
 	files, err := d.vault.ListFiles()
 	if err != nil {
@@ -108,13 +136,12 @@ func (d *Daemon) ListFiles(req *struct{}, reply *[]*types.FileRecord) error {
 	}
 
 	*reply = files
-	d.lastActivity = time.Now()
 	return nil
 }
 
 func (d *Daemon) GetFile(fileID string, reply *types.FileRecord) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	if err := d.beginOp(); err != nil { return err }
+	defer d.endOp()
 
 	record, err := d.vault.GetFile(fileID)
 	if err != nil {
@@ -122,13 +149,12 @@ func (d *Daemon) GetFile(fileID string, reply *types.FileRecord) error {
 	}
 
 	*reply = *record
-	d.lastActivity = time.Now()
 	return nil
 }
 
 func (d *Daemon) AddFile(args *types.AddFileArgs, reply *bool) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	if err := d.beginOp(); err != nil { return err }
+	defer d.endOp()
 
 	err := d.vault.AddFile(args.SourcePath, args.LogicalName)
 	if err != nil {
@@ -136,13 +162,12 @@ func (d *Daemon) AddFile(args *types.AddFileArgs, reply *bool) error {
 		return err
 	}
 	*reply = true
-	d.lastActivity = time.Now()
 	return nil
 }
 
 func (d *Daemon) ExportFile(args *types.ExportFileArgs, reply *bool) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	if err := d.beginOp(); err != nil { return err }
+	defer d.endOp()
 
 	err := d.vault.ExportFile(args.FileID, args.DestDir)
 	if err != nil {
@@ -150,13 +175,12 @@ func (d *Daemon) ExportFile(args *types.ExportFileArgs, reply *bool) error {
 		return err
 	}
 	*reply = true
-	d.lastActivity = time.Now()
 	return nil
 }
 
 func (d *Daemon) DeleteFile(fileID string, reply *bool) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	if err := d.beginOp(); err != nil { return err }
+	defer d.endOp()
 
 	err := d.vault.DeleteFile(fileID)
 	if err != nil {
@@ -164,22 +188,35 @@ func (d *Daemon) DeleteFile(fileID string, reply *bool) error {
 		return err
 	}
 	*reply = true
-	d.lastActivity = time.Now()
 	return nil
 }
 
-func (d *Daemon) Lock(req *struct{}, reply *bool) error {
+// LockVault safely drains active ops and then destroys keys.
+func (d *Daemon) LockVault() {
 	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.shuttingDown = true
+	d.mu.Unlock()
+
+	log.Println("Waiting for active operations to complete before locking...")
+	d.activeOps.Wait()
 
 	session.DestroySession()
+
+	d.mu.Lock()
+	d.shuttingDown = false // Resume if unlocked again
+	d.mu.Unlock()
+	log.Println("Vault is now safely locked.")
+}
+
+func (d *Daemon) Lock(req *struct{}, reply *bool) error {
+	d.LockVault()
 	*reply = true
 	return nil
 }
 
 func (d *Daemon) Status(req *struct{}, reply *types.StatusReply) error {
-	d.mu.Lock()
-	defer d.mu.Unlock()
+	d.mu.RLock()
+	defer d.mu.RUnlock()
 
 	unlocked := session.IsUnlocked()
 	reply.Unlocked = unlocked
@@ -235,7 +272,7 @@ func RunServer(timeout time.Duration) error {
 		cancel()
 		d.Stop()
 		l.Close()
-		session.DestroySession()
+		d.LockVault()
 		os.Remove(socketPath)
 	}()
 

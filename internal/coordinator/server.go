@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
@@ -74,6 +75,9 @@ func (s *CoordinatorServer) Heartbeat(ctx context.Context, req *pb.HeartbeatRequ
 	s.Registry.mu.Lock()
 	if node, ok := s.Registry.nodes[req.NodeId]; ok {
 		node.LastSeen = time.Now()
+		if req.FreeSpaceBytes > 0 {
+			node.CapacityBytes = req.FreeSpaceBytes
+		}
 	}
 	s.Registry.mu.Unlock()
 	return &pb.HeartbeatResponse{Acknowledged: true}, nil
@@ -83,13 +87,29 @@ func (s *CoordinatorServer) GetUploadPlan(ctx context.Context, req *pb.UploadPla
 	if err := requireRole(ctx, "node", "coordinator", "client"); err != nil {
 		return nil, err
 	}
+	
 	nodes := s.Registry.GetHealthyNodes()
-	if len(nodes) < int(req.ShardCount) {
-		return nil, fmt.Errorf("insufficient healthy nodes (found %d, need %d)", len(nodes), req.ShardCount)
+	
+	// Filter out nodes that do not have the required capacity
+	var capableNodes []*RegisteredNode
+	for _, n := range nodes {
+		if n.CapacityBytes >= req.RequiredCapacity {
+			capableNodes = append(capableNodes, n)
+		}
 	}
+
+	if len(capableNodes) < int(req.ShardCount) {
+		return nil, fmt.Errorf("insufficient healthy nodes with adequate capacity (found %d, need %d)", len(capableNodes), req.ShardCount)
+	}
+	
+	// Sort nodes by capacity descending so we place on nodes with most free space
+	sort.Slice(capableNodes, func(i, j int) bool {
+		return capableNodes[i].CapacityBytes > capableNodes[j].CapacityBytes
+	})
+
 	assignments := make(map[int32]string)
 	for i := 0; i < int(req.ShardCount); i++ {
-		assignments[int32(i)] = nodes[i%len(nodes)].Endpoint
+		assignments[int32(i)] = capableNodes[i%len(capableNodes)].Endpoint
 	}
 	return &pb.UploadPlanResponse{Assignments: assignments}, nil
 }

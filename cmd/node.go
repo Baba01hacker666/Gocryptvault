@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"syscall"
 	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
@@ -26,7 +27,16 @@ var (
 	nodeRegister  bool
 )
 
-func startHeartbeats(ctx context.Context, client pb.CoordinatorClient, nodeID string) {
+func getFreeSpace(dir string) int64 {
+	var stat syscall.Statfs_t
+	if err := syscall.Statfs(dir, &stat); err != nil {
+		return 0
+	}
+	// Available blocks * size per block
+	return int64(stat.Bavail) * int64(stat.Bsize)
+}
+
+func startHeartbeats(ctx context.Context, client pb.CoordinatorClient, nodeID, dir string) {
 	ticker := time.NewTicker(1 * time.Minute)
 	defer ticker.Stop()
 
@@ -35,7 +45,11 @@ func startHeartbeats(ctx context.Context, client pb.CoordinatorClient, nodeID st
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			_, err := client.Heartbeat(ctx, &pb.HeartbeatRequest{NodeId: nodeID})
+			freeSpace := getFreeSpace(dir)
+			_, err := client.Heartbeat(ctx, &pb.HeartbeatRequest{
+				NodeId:         nodeID,
+				FreeSpaceBytes: freeSpace,
+			})
 			if err != nil {
 				log.Printf("Warning: heartbeat failed for node %s: %v", nodeID, err)
 			}
@@ -75,7 +89,7 @@ var nodeCmd = &cobra.Command{
 			fmt.Printf("Node %s registered with coordinator at %s\n", nodeID, nodeCoordAddr)
 
 			// Start background heartbeats
-			go startHeartbeats(context.Background(), coord, nodeID)
+			go startHeartbeats(context.Background(), coord, nodeID, nodeDir)
 		}
 
 		lis, err := net.Listen("tcp", nodeAddr)

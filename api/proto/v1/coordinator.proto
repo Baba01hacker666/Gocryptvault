@@ -25,10 +25,16 @@ message NodeInfo {
 }
 
 message RegisterResponse { bool success = 1; }
-message HeartbeatRequest { string node_id = 1; }
+message HeartbeatRequest {
+    string node_id = 1;
+    int64 free_space_bytes = 2;
+}
 message HeartbeatResponse { bool acknowledged = 1; }
 
-message UploadPlanRequest { int32 shard_count = 1; }
+message UploadPlanRequest {
+    int32 shard_count = 1;
+    int64 required_capacity = 2; // Required free space per node in bytes
+}
 message UploadPlanResponse {
     map<int32, string> assignments = 1; // ShardIndex -> NodeEndpoint
 }

@@ -126,7 +126,10 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		
 		// Get upload plan for this chunk's shards
 		// objects.DataShards + objects.ParityShards = 6
-		planReq := &pb.UploadPlanRequest{ShardCount: int32(objects.DataShards + objects.ParityShards)}
+		planReq := &pb.UploadPlanRequest{
+			ShardCount:       int32(objects.DataShards + objects.ParityShards),
+			RequiredCapacity: int64(objects.ChunkSize),
+		}
 		plan, err := coordinator.GetUploadPlan(context.Background(), planReq)
 		if err != nil {
 			cleanup()
