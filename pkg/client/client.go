@@ -3,8 +3,9 @@ package client
 import (
 	"fmt"
 	"net/rpc"
+	"path/filepath"
 
-	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
+	"github.com/Baba01hacker666/Gocryptvault/internal/config"
 	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 )
 
@@ -12,8 +13,13 @@ type Client struct {
 	RPC *rpc.Client
 }
 
+func getSocketPath() string {
+	return filepath.Join(config.GetVaultPath(), "gocryptvault.sock")
+}
+
 func NewClient() (*Client, error) {
-	c, err := daemon.ConnectRPC()
+	sockPath := getSocketPath()
+	c, err := rpc.Dial("unix", sockPath)
 	if err != nil {
 		return nil, fmt.Errorf("client: failed to connect to daemon: %w", err)
 	}
@@ -94,4 +100,3 @@ func (c *Client) DeleteFileLocal(fileID string) error {
 	}
 	return nil
 }
-

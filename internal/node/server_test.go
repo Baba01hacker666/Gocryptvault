@@ -45,7 +45,7 @@ func TestStorageServer(t *testing.T) {
 
 	client := initGRPC(t, tmpDir)
 
-	shardID := "test-shard-id"
+	shardID := "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
 	data := []byte("hello world")
 
 	// Test PutShard

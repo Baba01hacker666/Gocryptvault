@@ -42,3 +42,44 @@ type ExportFileArgs struct {
 	FileID  string
 	DestDir string
 }
+
+type DistAddArgs struct {
+	SourcePath  string
+	LogicalName string
+	CoordAddr   string
+	CA          string
+	Cert        string
+	Key         string
+	Hidden      bool
+	HiddenPass  string
+}
+
+type DistExportArgs struct {
+	FileID      string
+	DestDir     string
+	CoordAddr   string
+	CA          string
+	Cert        string
+	Key         string
+	Hidden      bool
+	HiddenPass  string
+}
+
+type DistListArgs struct {
+	CoordAddr   string
+	CA          string
+	Cert        string
+	Key         string
+	Hidden      bool
+	HiddenPass  string
+}
+
+type DistDeleteArgs struct {
+	FileID      string
+	CoordAddr   string
+	CA          string
+	Cert        string
+	Key         string
+	Hidden      bool
+	HiddenPass  string
+}

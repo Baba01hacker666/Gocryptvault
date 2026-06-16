@@ -60,7 +60,8 @@ func generateTestCerts(t *testing.T) (caFile, certFile, keyFile string) {
 	certTemplate := &x509.Certificate{
 		SerialNumber: big.NewInt(2),
 		Subject: pkix.Name{
-			Organization: []string{"Gocryptvault Test Node"},
+			Organization:       []string{"Gocryptvault Test Node"},
+			OrganizationalUnit: []string{"node", "client"},
 		},
 		DNSNames:     []string{"localhost"},
 		IPAddresses:  []net.IP{net.ParseIP("127.0.0.1")},
@@ -183,7 +184,7 @@ func TestDistributedIntegration(t *testing.T) {
 	v.Init(pass)
 	v.Unlock(pass)
 
-	d := daemon.NewDaemon(v)
+	d := daemon.NewDaemon(v, 15*time.Minute)
 	// We need to use a different name to avoid conflict if tests run in same process
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("VaultDaemon", d)
@@ -215,8 +216,8 @@ func TestDistributedIntegration(t *testing.T) {
 	}
 
 	// 6. Verify Coordinator's metadata
-	metaPath := filepath.Join(coordVaultDir, "metadata.enc")
-	if _, err := os.Stat(metaPath); os.IsNotExist(err) {
+	matches, _ := filepath.Glob(filepath.Join(coordVaultDir, "metadata_*.enc"))
+	if len(matches) == 0 {
 		t.Error("Coordinator metadata file not found")
 	}
 

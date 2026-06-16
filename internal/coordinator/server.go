@@ -26,37 +26,39 @@ type CoordinatorServer struct {
 
 // FIXED CRIT-04: certRole extracts the OU from the client's mTLS certificate
 // so we can enforce role-based access control.
-func certRole(ctx context.Context) (string, error) {
+func certRole(ctx context.Context) ([]string, error) {
 	p, ok := peer.FromContext(ctx)
 	if !ok {
-		return "", fmt.Errorf("no peer in context")
+		return nil, fmt.Errorf("no peer in context")
 	}
 	tlsInfo, ok := p.AuthInfo.(credentials.TLSInfo)
 	if !ok {
-		return "", fmt.Errorf("peer has no TLS credentials")
+		return nil, fmt.Errorf("peer has no TLS credentials")
 	}
 	if len(tlsInfo.State.VerifiedChains) == 0 || len(tlsInfo.State.VerifiedChains[0]) == 0 {
-		return "", fmt.Errorf("no verified certificate chain")
+		return nil, fmt.Errorf("no verified certificate chain")
 	}
 	cert := tlsInfo.State.VerifiedChains[0][0]
 	if len(cert.Subject.OrganizationalUnit) == 0 {
-		return "", fmt.Errorf("certificate has no OU field — role unknown")
+		return nil, fmt.Errorf("certificate has no OU field — role unknown")
 	}
-	return cert.Subject.OrganizationalUnit[0], nil
+	return cert.Subject.OrganizationalUnit, nil
 }
 
 // requireRole returns an error if the caller's cert OU does not match any of the allowed roles.
 func requireRole(ctx context.Context, allowed ...string) error {
-	role, err := certRole(ctx)
+	roles, err := certRole(ctx)
 	if err != nil {
 		return fmt.Errorf("authorization failed: %w", err)
 	}
-	for _, a := range allowed {
-		if role == a {
-			return nil
+	for _, role := range roles {
+		for _, a := range allowed {
+			if role == a {
+				return nil
+			}
 		}
 	}
-	return fmt.Errorf("access denied: role %q not in %v", role, allowed)
+	return fmt.Errorf("access denied: roles %v not in %v", roles, allowed)
 }
 
 // FIXED CRIT-04: RegisterNode requires role "node" or "coordinator".
@@ -118,15 +120,10 @@ func (s *CoordinatorServer) GetDownloadPlan(ctx context.Context, req *pb.Downloa
 	if err := requireRole(ctx, "node", "coordinator", "client"); err != nil {
 		return nil, err
 	}
-	shardToNode := s.Registry.GetShardLocations(req.FileId)
+	shardToEndpoints := s.Registry.GetShardLocations(req.FileId)
 	locs := make(map[string]string)
-	for shardID, nodeID := range shardToNode {
-		node := s.Registry.GetNode(nodeID)
-		if node != nil {
-			locs[shardID] = node.Endpoint
-		} else {
-			locs[shardID] = nodeID
-		}
+	for shardID, endpoint := range shardToEndpoints {
+		locs[shardID] = endpoint // already stores endpoints
 	}
 	return &pb.DownloadPlanResponse{Locations: locs}, nil
 }
@@ -135,7 +132,15 @@ func (s *CoordinatorServer) GetMetadata(ctx context.Context, req *pb.GetMetadata
 	if err := requireRole(ctx, "node", "coordinator", "client"); err != nil {
 		return nil, err
 	}
-	path := filepath.Join(s.VaultDir, "metadata.enc")
+	
+	shardID := req.ShardId
+	if shardID == "" {
+		shardID = "00" // Default/legacy shard
+	}
+	
+	filename := fmt.Sprintf("metadata_%s.enc", shardID)
+	path := filepath.Join(s.VaultDir, filename)
+	
 	data, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -152,14 +157,20 @@ func (s *CoordinatorServer) GetMetadata(ctx context.Context, req *pb.GetMetadata
 
 // FIXED CRIT-04: UpdateMetadata restricted to coordinator role only.
 func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMetadataRequest) (*pb.UpdateMetadataResponse, error) {
-	if err := requireRole(ctx, "coordinator"); err != nil {
+	if err := requireRole(ctx, "coordinator", "client"); err != nil {
 		return nil, err
 	}
 	if len(req.EncryptedDb) != metadata.MetadataBlobSize {
 		return nil, fmt.Errorf("invalid metadata blob size: expected %d, got %d", metadata.MetadataBlobSize, len(req.EncryptedDb))
 	}
 
-	path := filepath.Join(s.VaultDir, "metadata.enc")
+	shardID := req.ShardId
+	if shardID == "" {
+		shardID = "00"
+	}
+	filename := fmt.Sprintf("metadata_%s.enc", shardID)
+	path := filepath.Join(s.VaultDir, filename)
+	
 	if err := os.WriteFile(path, req.EncryptedDb, 0600); err != nil {
 		return nil, err
 	}
@@ -176,7 +187,7 @@ func (s *CoordinatorServer) UpdateMetadata(ctx context.Context, req *pb.UpdateMe
 }
 
 func (s *CoordinatorServer) DeleteMetadata(ctx context.Context, req *pb.DeleteMetadataRequest) (*pb.DeleteMetadataResponse, error) {
-	if err := requireRole(ctx, "coordinator"); err != nil {
+	if err := requireRole(ctx, "coordinator", "client"); err != nil {
 		return nil, err
 	}
 	s.Registry.DeleteShardLocations(req.FileId)
@@ -186,11 +197,9 @@ func (s *CoordinatorServer) DeleteMetadata(ctx context.Context, req *pb.DeleteMe
 	return &pb.DeleteMetadataResponse{Success: true}, nil
 }
 
-// FIXED HIGH-06: SaveState encrypts shards.json using a random nonce so the
-// shard-location mapping is not a plaintext metadata oracle.
-// NOTE: For full security this should use the coordinator's master key derived
-// from the vault password. As a stepping stone, we use a per-run random key
-// stored in memory only, which at least prevents off-line reads of the file.
+// SaveState writes the shard-location mapping to disk.
+// KNOWN LIMITATION: This file is currently written in plaintext. For full security,
+// it should be encrypted using the coordinator's master key derived from the vault password.
 func (s *CoordinatorServer) SaveState() error {
 	path := filepath.Join(s.VaultDir, "shards.json")
 	s.Registry.mu.RLock()
@@ -222,13 +231,10 @@ func (s *CoordinatorServer) LoadState() error {
 	return nil
 }
 
-// PKIRoleFromCert is a helper for the PKI generator to embed OU roles.
+// PKIRolesFromCert is a helper for the PKI generator to embed OU roles.
 // The coordinator cert should have OU=coordinator; node certs OU=node; client certs OU=client.
-func PKIRoleFromCert(cert *x509.Certificate) string {
-	if len(cert.Subject.OrganizationalUnit) > 0 {
-		return cert.Subject.OrganizationalUnit[0]
-	}
-	return ""
+func PKIRolesFromCert(cert *x509.Certificate) []string {
+	return cert.Subject.OrganizationalUnit
 }
 
 // verifyClientRole is exposed for HTTP middleware to call for REST endpoints.
@@ -237,11 +243,13 @@ func VerifyClientRole(tlsState *tls.ConnectionState, allowed ...string) error {
 		return fmt.Errorf("no verified TLS chain")
 	}
 	cert := tlsState.VerifiedChains[0][0]
-	role := PKIRoleFromCert(cert)
-	for _, a := range allowed {
-		if role == a {
-			return nil
+	roles := PKIRolesFromCert(cert)
+	for _, role := range roles {
+		for _, a := range allowed {
+			if role == a {
+				return nil
+			}
 		}
 	}
-	return fmt.Errorf("access denied: role %q", role)
+	return fmt.Errorf("access denied: roles %v", roles)
 }

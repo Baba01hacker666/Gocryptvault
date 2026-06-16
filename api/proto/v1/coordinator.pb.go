@@ -111,6 +111,7 @@ func (x *DeleteMetadataResponse) GetSuccess() bool {
 
 type GetMetadataRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
+	ShardId       string                 `protobuf:"bytes,1,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -143,6 +144,13 @@ func (x *GetMetadataRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use GetMetadataRequest.ProtoReflect.Descriptor instead.
 func (*GetMetadataRequest) Descriptor() ([]byte, []int) {
 	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *GetMetadataRequest) GetShardId() string {
+	if x != nil {
+		return x.ShardId
+	}
+	return ""
 }
 
 type GetMetadataResponse struct {
@@ -619,8 +627,9 @@ func (x *DownloadPlanResponse) GetLocations() map[string]string {
 
 type UpdateMetadataRequest struct {
 	state            protoimpl.MessageState     `protogen:"open.v1"`
-	EncryptedDb      []byte                     `protobuf:"bytes,1,opt,name=encrypted_db,json=encryptedDb,proto3" json:"encrypted_db,omitempty"`
-	NewFileLocations map[string]*ShardLocations `protobuf:"bytes,2,rep,name=new_file_locations,json=newFileLocations,proto3" json:"new_file_locations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // FileID -> ShardLocations
+	ShardId          string                     `protobuf:"bytes,1,opt,name=shard_id,json=shardId,proto3" json:"shard_id,omitempty"`
+	EncryptedDb      []byte                     `protobuf:"bytes,2,opt,name=encrypted_db,json=encryptedDb,proto3" json:"encrypted_db,omitempty"`
+	NewFileLocations map[string]*ShardLocations `protobuf:"bytes,3,rep,name=new_file_locations,json=newFileLocations,proto3" json:"new_file_locations,omitempty" protobuf_key:"bytes,1,opt,name=key" protobuf_val:"bytes,2,opt,name=value"` // FileID -> ShardLocations
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -653,6 +662,13 @@ func (x *UpdateMetadataRequest) ProtoReflect() protoreflect.Message {
 // Deprecated: Use UpdateMetadataRequest.ProtoReflect.Descriptor instead.
 func (*UpdateMetadataRequest) Descriptor() ([]byte, []int) {
 	return file_api_proto_v1_coordinator_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *UpdateMetadataRequest) GetShardId() string {
+	if x != nil {
+		return x.ShardId
+	}
+	return ""
 }
 
 func (x *UpdateMetadataRequest) GetEncryptedDb() []byte {
@@ -721,8 +737,9 @@ const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\x15DeleteMetadataRequest\x12\x17\n" +
 	"\afile_id\x18\x01 \x01(\tR\x06fileId\"2\n" +
 	"\x16DeleteMetadataResponse\x12\x18\n" +
-	"\asuccess\x18\x01 \x01(\bR\asuccess\"\x14\n" +
-	"\x12GetMetadataRequest\"8\n" +
+	"\asuccess\x18\x01 \x01(\bR\asuccess\"/\n" +
+	"\x12GetMetadataRequest\x12\x19\n" +
+	"\bshard_id\x18\x01 \x01(\tR\ashardId\"8\n" +
 	"\x13GetMetadataResponse\x12!\n" +
 	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\"]\n" +
 	"\bNodeInfo\x12\x0e\n" +
@@ -756,10 +773,11 @@ const file_api_proto_v1_coordinator_proto_rawDesc = "" +
 	"\tlocations\x18\x01 \x03(\v2'.v1.DownloadPlanResponse.LocationsEntryR\tlocations\x1a<\n" +
 	"\x0eLocationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12\x14\n" +
-	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\xf2\x01\n" +
-	"\x15UpdateMetadataRequest\x12!\n" +
-	"\fencrypted_db\x18\x01 \x01(\fR\vencryptedDb\x12]\n" +
-	"\x12new_file_locations\x18\x02 \x03(\v2/.v1.UpdateMetadataRequest.NewFileLocationsEntryR\x10newFileLocations\x1aW\n" +
+	"\x05value\x18\x02 \x01(\tR\x05value:\x028\x01\"\x8d\x02\n" +
+	"\x15UpdateMetadataRequest\x12\x19\n" +
+	"\bshard_id\x18\x01 \x01(\tR\ashardId\x12!\n" +
+	"\fencrypted_db\x18\x02 \x01(\fR\vencryptedDb\x12]\n" +
+	"\x12new_file_locations\x18\x03 \x03(\v2/.v1.UpdateMetadataRequest.NewFileLocationsEntryR\x10newFileLocations\x1aW\n" +
 	"\x15NewFileLocationsEntry\x12\x10\n" +
 	"\x03key\x18\x01 \x01(\tR\x03key\x12(\n" +
 	"\x05value\x18\x02 \x01(\v2\x12.v1.ShardLocationsR\x05value:\x028\x01\"2\n" +

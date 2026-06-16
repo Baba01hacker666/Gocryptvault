@@ -5,20 +5,20 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Baba01hacker666/Gocryptvault/pkg/client"
-	"github.com/Baba01hacker666/Gocryptvault/pkg/security"
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/spf13/cobra"
 )
 
 var (
-	asyncAdd         bool
-	distAdd          bool
-	distCoordAddr    string
-	distCA           string
-	distCert         string
-	distKey          string
-	distHidden       bool
-	distHiddenPass   string
+	asyncAdd       bool
+	distAdd        bool
+	distCoordAddr  string
+	distCA         string
+	distCert       string
+	distKey        string
+	distHidden     bool
+	distHiddenPass string
 )
 
 var addCmd = &cobra.Command{
@@ -35,23 +35,23 @@ var addCmd = &cobra.Command{
 		}
 
 		if distAdd {
-			tlsConfig, err := security.LoadTLSConfig(distCA, distCert, distKey, false)
-			if err != nil {
-				return fmt.Errorf("failed to load TLS config: %w", err)
-			}
-
-			c, err := client.NewClient()
-			if err != nil {
-				return fmt.Errorf("failed to connect to daemon: %w", err)
-			}
-			defer c.Close()
-
 			if info.IsDir() {
 				return fmt.Errorf("distributed directory upload not yet implemented")
 			}
-
 			fmt.Printf("Adding file %s in distributed mode...\n", targetPath)
-			if err := c.AddFileDistributed(targetPath, filepath.Base(targetPath), distCoordAddr, tlsConfig, distHidden, distHiddenPass); err != nil {
+
+			args := &types.DistAddArgs{
+				SourcePath:  targetPath,
+				LogicalName: filepath.Base(targetPath),
+				CoordAddr:   distCoordAddr,
+				CA:          distCA,
+				Cert:        distCert,
+				Key:         distKey,
+				Hidden:      distHidden,
+				HiddenPass:  distHiddenPass,
+			}
+
+			if err := daemon.AddFileDistributedRPC(args); err != nil {
 				return fmt.Errorf("distributed add failed: %w", err)
 			}
 			fmt.Println("File added successfully in distributed mode.")

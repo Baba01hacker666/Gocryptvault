@@ -5,15 +5,13 @@ import (
 	"time"
 
 	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
-	"github.com/Baba01hacker666/Gocryptvault/pkg/client"
-	"github.com/Baba01hacker666/Gocryptvault/pkg/security"
 	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/spf13/cobra"
 )
 
 var (
-	distList       bool
-	distListCoord  string
+	distList      bool
+	distListCoord string
 )
 
 var listCmd = &cobra.Command{
@@ -24,18 +22,16 @@ var listCmd = &cobra.Command{
 		var err error
 
 		if distList {
-			tlsConfig, err := security.LoadTLSConfig(distCA, distCert, distKey, false)
-			if err != nil {
-				return fmt.Errorf("failed to load TLS config: %w", err)
+			args := &types.DistListArgs{
+				CoordAddr:  distListCoord,
+				CA:         distCA,
+				Cert:       distCert,
+				Key:        distKey,
+				Hidden:     distHidden,
+				HiddenPass: distHiddenPass,
 			}
 
-			c, err := client.NewClient()
-			if err != nil {
-				return fmt.Errorf("failed to connect to daemon: %w", err)
-			}
-			defer c.Close()
-
-			files, err = c.ListFilesDistributed(distListCoord, tlsConfig, distHidden, distHiddenPass)
+			files, err = daemon.ListFilesDistributedRPC(args)
 			if err != nil {
 				return fmt.Errorf("distributed list failed: %w", err)
 			}

@@ -3,7 +3,9 @@ package client
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,15 +26,16 @@ import (
 	"google.golang.org/grpc/credentials"
 )
 
+func getMetadataShardID(fileID string) string {
+	hash := sha256.Sum256([]byte(fileID))
+	return hex.EncodeToString(hash[:])[:1]
+}
+
 func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorAddr string, tlsConfig *tls.Config, hidden bool, hiddenPassword string) error {
 	// 1. Ensure we have keys (session)
 	sess, err := session.GetSession()
 	if err != nil {
 		// Try to get from daemon
-		if err := c.ensureSession(); err != nil {
-			return err
-		}
-		sess, _ = session.GetSession()
 	}
 
 	var metaKey []byte
@@ -194,8 +197,9 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 		record.Chunks[i] = chunkInfo
 	}
 
-	// 5. Update Metadata
-	resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	// 5. Update Metadata for the specific shard
+	metaShardID := getMetadataShardID(record.ID)
+	resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{ShardId: metaShardID})
 	var db *metadata.MetadataDB
 	var blob []byte
 
@@ -254,6 +258,7 @@ func (c *Client) AddFileDistributed(sourcePath, logicalName string, coordinatorA
 	}
 
 	_, err = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
+		ShardId:     metaShardID,
 		EncryptedDb: newBlob,
 		NewFileLocations: map[string]*pb.ShardLocations{
 			record.ID: shardLocs,
@@ -310,10 +315,6 @@ func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Con
 	// 1. Ensure session
 	sess, err := session.GetSession()
 	if err != nil {
-		if err := c.ensureSession(); err != nil {
-			return nil, err
-		}
-		sess, _ = session.GetSession()
 	}
 
 	var metaKey []byte
@@ -338,35 +339,63 @@ func (c *Client) ListFilesDistributed(coordinatorAddr string, tlsConfig *tls.Con
 	defer conn.Close()
 	coordinator := pb.NewCoordinatorClient(conn)
 
-	// 3. Get Metadata
-	resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
-	if err != nil {
-		return nil, err
-	}
-
-	if resp.EncryptedDb == nil {
-		return []*types.FileRecord{}, nil
-	}
-
-	var encryptedData []byte
-	if hidden {
-		encryptedData, err = metadata.ExtractHidden(resp.EncryptedDb, offset)
-	} else {
-		encryptedData, err = metadata.ExtractDecoy(resp.EncryptedDb)
-	}
-	if err != nil {
-		return nil, err
-	}
-
-	db, err := metadata.DecryptMetadata(encryptedData, metaKey)
-	if err != nil {
-		return nil, err
-	}
-
+	// 3. Get all Metadata Shards concurrently
 	var files []*types.FileRecord
-	for _, f := range db.Files {
-		files = append(files, f)
+	var filesMu sync.Mutex
+	var wg sync.WaitGroup
+	var errs []error
+	var errsMu sync.Mutex
+
+	shards := []string{"0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "a", "b", "c", "d", "e", "f"}
+	
+	for _, shardID := range shards {
+		wg.Add(1)
+		go func(sID string) {
+			defer wg.Done()
+			resp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{ShardId: sID})
+			if err != nil {
+				errsMu.Lock()
+				errs = append(errs, err)
+				errsMu.Unlock()
+				return
+			}
+
+			if resp.EncryptedDb == nil {
+				return
+			}
+
+			var encryptedData []byte
+			if hidden {
+				encryptedData, err = metadata.ExtractHidden(resp.EncryptedDb, offset)
+			} else {
+				encryptedData, err = metadata.ExtractDecoy(resp.EncryptedDb)
+			}
+			if err != nil {
+				errsMu.Lock()
+				errs = append(errs, err)
+				errsMu.Unlock()
+				return
+			}
+
+			db, err := metadata.DecryptMetadata(encryptedData, metaKey)
+			if err != nil {
+				// empty or invalid db is fine
+				return
+			}
+
+			filesMu.Lock()
+			for _, f := range db.Files {
+				files = append(files, f)
+			}
+			filesMu.Unlock()
+		}(shardID)
 	}
+	wg.Wait()
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("failed to fetch some metadata shards: %v", errs[0])
+	}
+
 	return files, nil
 }
 
@@ -374,10 +403,6 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 	// 1. Ensure session
 	sess, err := session.GetSession()
 	if err != nil {
-		if err := c.ensureSession(); err != nil {
-			return err
-		}
-		sess, _ = session.GetSession()
 	}
 
 	var metaKey []byte
@@ -408,8 +433,9 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 		return err
 	}
 
-	// 4. Get Metadata to find the record
-	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	// 4. Get Metadata to find the record (using the specific shard)
+	metaShardID := getMetadataShardID(fileID)
+	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{ShardId: metaShardID})
 	if err != nil || mResp.EncryptedDb == nil {
 		return fmt.Errorf("failed to get metadata from coordinator: %v", err)
 	}
@@ -592,10 +618,6 @@ func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tl
 	// 1. Ensure session
 	sess, err := session.GetSession()
 	if err != nil {
-		if err := c.ensureSession(); err != nil {
-			return err
-		}
-		sess, _ = session.GetSession()
 	}
 
 	var metaKey []byte
@@ -642,7 +664,8 @@ func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tl
 	wg.Wait()
 
 	// 5. Update Metadata (remove file record from metadata.enc)
-	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{})
+	metaShardID := getMetadataShardID(fileID)
+	mResp, err := coordinator.GetMetadata(context.Background(), &pb.GetMetadataRequest{ShardId: metaShardID})
 	if err != nil {
 		return fmt.Errorf("failed to get metadata from coordinator: %w", err)
 	}
@@ -686,6 +709,7 @@ func (c *Client) DeleteFileDistributed(fileID string, coordinatorAddr string, tl
 						}
 
 						_, _ = coordinator.UpdateMetadata(context.Background(), &pb.UpdateMetadataRequest{
+							ShardId:     metaShardID,
 							EncryptedDb: newBlob,
 						})
 					}
@@ -720,17 +744,7 @@ func (c *Client) deleteShard(endpoint, shardID string, tlsConfig *tls.Config) er
 	return nil
 }
 
-func (c *Client) ensureSession() error {
-	// Re-use logic from daemon.EnsureLocalSession but call it here
-	// This might need daemon package imports
-	var reply types.KeysReply
-	err := c.RPC.Call("VaultDaemon.GetKeys", &struct{}{}, &reply)
-	if err != nil {
-		return fmt.Errorf("vault is locked or daemon not running: %w", err)
-	}
 
-	return session.InitSession(reply.MasterKey, reply.MetaKey)
-}
 
 type NodeStatus struct {
 	ID            string `json:"ID"`
@@ -739,7 +753,7 @@ type NodeStatus struct {
 	LastSeen      string `json:"LastSeen"`
 }
 
-func (c *Client) GetClusterStatus(coordinatorAddr string, tlsConfig *tls.Config) ([]NodeStatus, error) {
+func GetClusterStatus(coordinatorAddr string, tlsConfig *tls.Config) ([]NodeStatus, error) {
 	// Use HTTPS to contact the REST endpoint of the coordinator
 	transport := &http.Transport{
 		TLSClientConfig: tlsConfig,

@@ -71,12 +71,13 @@ var nodeCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to load client TLS config: %w", err)
 			}
-			
+
 			conn, err := grpc.Dial(nodeCoordAddr, grpc.WithTransportCredentials(credentials.NewTLS(clientTLS)))
 			if err != nil {
 				return fmt.Errorf("failed to connect to coordinator for registration: %w", err)
 			}
-			
+			defer conn.Close()
+
 			coord := pb.NewCoordinatorClient(conn)
 			_, err = coord.RegisterNode(context.Background(), &pb.NodeInfo{
 				Id:            nodeID,

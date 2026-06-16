@@ -15,7 +15,9 @@ service Coordinator {
 message DeleteMetadataRequest { string file_id = 1; }
 message DeleteMetadataResponse { bool success = 1; }
 
-message GetMetadataRequest {}
+message GetMetadataRequest {
+    string shard_id = 1;
+}
 message GetMetadataResponse { bytes encrypted_db = 1; }
 
 message NodeInfo {
@@ -50,8 +52,9 @@ message DownloadPlanResponse {
 }
 
 message UpdateMetadataRequest {
-    bytes encrypted_db = 1;
-    map<string, ShardLocations> new_file_locations = 2; // FileID -> ShardLocations
+    string shard_id = 1;
+    bytes encrypted_db = 2;
+    map<string, ShardLocations> new_file_locations = 3; // FileID -> ShardLocations
 }
 
 message UpdateMetadataResponse { bool success = 1; }

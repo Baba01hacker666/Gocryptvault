@@ -26,8 +26,8 @@ var clusterStatusCmd = &cobra.Command{
 			return fmt.Errorf("failed to load TLS config: %w", err)
 		}
 
-		c := &client.Client{} // We only need the GetClusterStatus method, no RPC connection
-		nodes, err := c.GetClusterStatus(csCoordAddr, tlsConfig)
+		// S2: GetClusterStatus is now a standalone function
+		nodes, err := client.GetClusterStatus(csCoordAddr, tlsConfig)
 		if err != nil {
 			return fmt.Errorf("failed to get cluster status: %w", err)
 		}
@@ -49,7 +49,7 @@ var clusterStatusCmd = &cobra.Command{
 }
 
 func init() {
-	clusterStatusCmd.Flags().StringVar(&csCoordAddr, "coordinator", "127.0.0.1:50051", "Coordinator address")
+	clusterStatusCmd.Flags().StringVar(&csCoordAddr, "coordinator", "127.0.0.1:8443", "Coordinator address")
 	clusterStatusCmd.Flags().StringVar(&csCA, "ca", "ca.crt", "CA certificate")
 	clusterStatusCmd.Flags().StringVar(&csCert, "cert", "client.crt", "Client certificate")
 	clusterStatusCmd.Flags().StringVar(&csKey, "key", "client.key", "Client key")

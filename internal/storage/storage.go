@@ -486,11 +486,19 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 		res := <-futures[i]
 		<-sem // release slot
 		if res.err != nil {
-			return res.err
+			exportErr = res.err
+			return exportErr
 		}
 		if _, err := out.Write(res.data); err != nil {
-			return err
+			exportErr = err
+			return exportErr
 		}
+	}
+
+	out.Close() // Close before rename for Windows compatibility
+	if err := os.Rename(tmpDest, dest); err != nil {
+		exportErr = err
+		return exportErr
 	}
 
 	return nil

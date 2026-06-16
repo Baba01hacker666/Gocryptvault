@@ -22,8 +22,8 @@ func readPassword() ([]byte, error) {
 		if err != nil && err != io.EOF {
 			return nil, err
 		}
-		// remove \r\n or \n
-		pass = strings.TrimRight(pass, "\r\n")
+		// remove \r\n, \n, or trailing spaces
+		pass = strings.TrimSpace(pass)
 		return []byte(pass), nil
 	}
 	return term.ReadPassword(int(syscall.Stdin))

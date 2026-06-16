@@ -28,6 +28,7 @@ type Daemon struct {
 	autoLockTimeout time.Duration
 	activeOps       sync.WaitGroup
 	shuttingDown    bool
+	attemptCount    int
 }
 
 func NewDaemon(vault *storage.Vault, timeout time.Duration) *Daemon {
@@ -82,11 +83,20 @@ func (d *Daemon) Unlock(password []byte, reply *bool) error {
 		return fmt.Errorf("daemon is shutting down")
 	}
 
+	// S1: Rate limiting
+	d.attemptCount++
+	delay := time.Duration(d.attemptCount) * 500 * time.Millisecond
+	if delay > 5*time.Second {
+		delay = 5 * time.Second
+	}
+	time.Sleep(delay)
+
 	err := d.vault.Unlock(password)
 	if err != nil {
 		*reply = false
 		return err
 	}
+	d.attemptCount = 0 // reset on success
 	d.lastActivity = time.Now()
 	*reply = true
 	return nil

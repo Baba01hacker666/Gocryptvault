@@ -60,7 +60,6 @@ var coordinatorCmd = &cobra.Command{
 			}
 		}
 
-
 		registry := coordinator.NewRegistry()
 		registry.StartEviction(context.Background(), 5*time.Minute)
 		server := &coordinator.CoordinatorServer{
@@ -90,7 +89,7 @@ var coordinatorCmd = &cobra.Command{
 			}
 			s := grpc.NewServer(grpc.Creds(credentials.NewTLS(tlsConfig)))
 			pb.RegisterCoordinatorServer(s, server)
-			
+
 			go func() {
 				fmt.Printf("Coordinator (gRPC) listening on %s\n", coordGRPCAddr)
 				if err := s.Serve(grpcLis); err != nil {
@@ -105,8 +104,8 @@ var coordinatorCmd = &cobra.Command{
 }
 
 func init() {
-	coordinatorCmd.Flags().StringVar(&coordAddr, "addr", "0.0.0.0:50051", "Address to listen on for HTTPS REST API")
-	coordinatorCmd.Flags().StringVar(&coordGRPCAddr, "grpc-addr", "", "Address to listen on for gRPC API (disabled by default, explicit separate port required)")
+	coordinatorCmd.Flags().StringVar(&coordAddr, "addr", "0.0.0.0:8443", "Address to listen on for HTTPS REST API")
+	coordinatorCmd.Flags().StringVar(&coordGRPCAddr, "grpc-addr", "0.0.0.0:50051", "Address to listen on for gRPC API")
 	coordinatorCmd.Flags().StringVar(&coordPKIDir, "pki-dir", "~/.gocryptvault/pki", "Directory for auto-generated PKI certs (used when --ca/--cert/--key are not set)")
 	coordinatorCmd.Flags().StringVar(&coordVault, "vault-dir", "./coordinator_vault", "Directory to store encrypted metadata")
 	coordinatorCmd.Flags().StringVar(&coordCA, "ca", "", "CA certificate file (auto-generated if not set)")
@@ -115,4 +114,3 @@ func init() {
 
 	rootCmd.AddCommand(coordinatorCmd)
 }
-

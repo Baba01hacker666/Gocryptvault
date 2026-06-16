@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/Baba01hacker666/Gocryptvault/pkg/client"
-	"github.com/Baba01hacker666/Gocryptvault/pkg/security"
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -27,19 +27,20 @@ var exportCmd = &cobra.Command{
 		}
 
 		if distExport {
-			tlsConfig, err := security.LoadTLSConfig(distCA, distCert, distKey, false)
-			if err != nil {
-				return fmt.Errorf("failed to load TLS config: %w", err)
-			}
-
-			c, err := client.NewClient()
-			if err != nil {
-				return fmt.Errorf("failed to connect to daemon: %w", err)
-			}
-			defer c.Close()
-
 			fmt.Printf("Exporting file %s in distributed mode...\n", fileID)
-			if err := c.ExportFileDistributed(fileID, outDir, distExportCoord, tlsConfig, distHidden, distHiddenPass); err != nil {
+
+			args := &types.DistExportArgs{
+				FileID:     fileID,
+				DestDir:    outDir,
+				CoordAddr:  distExportCoord,
+				CA:         distCA,
+				Cert:       distCert,
+				Key:        distKey,
+				Hidden:     distHidden,
+				HiddenPass: distHiddenPass,
+			}
+
+			if err := daemon.ExportFileDistributedRPC(args); err != nil {
 				return fmt.Errorf("distributed export failed: %w", err)
 			}
 		} else {

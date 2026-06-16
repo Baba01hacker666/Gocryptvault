@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
 	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
@@ -63,7 +64,7 @@ func TestDistributedDeletion(t *testing.T) {
 	v.Init(pass)
 	v.Unlock(pass)
 
-	d := daemon.NewDaemon(v)
+	d := daemon.NewDaemon(v, 15*time.Minute)
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("VaultDaemon", d)
 	socketPath := filepath.Join(t.TempDir(), "test-del.sock")
@@ -160,7 +161,7 @@ func TestDistributedDeletionWithRestart(t *testing.T) {
 	pass := []byte("testpass")
 	v.Init(pass)
 	v.Unlock(pass)
-	d := daemon.NewDaemon(v)
+	d := daemon.NewDaemon(v, 15*time.Minute)
 	rpcServer := rpc.NewServer()
 	rpcServer.RegisterName("VaultDaemon", d)
 	socketPath := filepath.Join(t.TempDir(), "test-restart.sock")

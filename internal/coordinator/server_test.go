@@ -2,11 +2,16 @@ package coordinator
 
 import (
 	"context"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"os"
 	"testing"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
 	"github.com/Baba01hacker666/Gocryptvault/internal/metadata"
+	"google.golang.org/grpc/credentials"
+	"google.golang.org/grpc/peer"
 )
 
 func TestCoordinatorServer(t *testing.T) {
@@ -23,6 +28,22 @@ func TestCoordinatorServer(t *testing.T) {
 	}
 
 	ctx := context.Background()
+	p := &peer.Peer{
+		AuthInfo: credentials.TLSInfo{
+			State: tls.ConnectionState{
+				VerifiedChains: [][]*x509.Certificate{
+					{
+						{
+							Subject: pkix.Name{
+								OrganizationalUnit: []string{"coordinator"},
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	ctx = peer.NewContext(ctx, p)
 
 	// Test GetMetadata returns noise when not initialized
 	getRes, err := server.GetMetadata(ctx, &pb.GetMetadataRequest{})
@@ -75,7 +96,7 @@ func TestCoordinatorServer(t *testing.T) {
 		NewFileLocations: map[string]*pb.ShardLocations{
 			"file-1": {
 				ShardToNode: map[string]string{
-					"shard-0": "node-1",
+					"shard-0": "localhost:5001",
 				},
 			},
 		},

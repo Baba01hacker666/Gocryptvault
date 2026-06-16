@@ -33,7 +33,7 @@ func TestDaemonClientAddExport(t *testing.T) {
 
 	// Start daemon in background
 	go func() {
-		if err := daemon.RunServer(); err != nil {
+		if err := daemon.RunServer(15*time.Minute); err != nil {
 			fmt.Printf("daemon server error: %v\n", err)
 		}
 	}()

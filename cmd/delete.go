@@ -3,8 +3,9 @@ package cmd
 import (
 	"fmt"
 
+	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
 	"github.com/Baba01hacker666/Gocryptvault/pkg/client"
-	"github.com/Baba01hacker666/Gocryptvault/pkg/security"
+	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/spf13/cobra"
 )
 
@@ -21,20 +22,23 @@ var deleteCmd = &cobra.Command{
 		fileID := args[0]
 
 		if distDelete {
-			tlsConfig, err := security.LoadTLSConfig(distCA, distCert, distKey, false)
-			if err != nil {
-				return fmt.Errorf("failed to load TLS config: %w", err)
+			fmt.Printf("Deleting file %s in distributed mode...\n", fileID)
+
+			args := &types.DistDeleteArgs{
+				FileID:     fileID,
+				CoordAddr:  distDeleteCoord,
+				CA:         distCA,
+				Cert:       distCert,
+				Key:        distKey,
+				Hidden:     distHidden,
+				HiddenPass: distHiddenPass,
 			}
 
-			c, err := client.NewClient()
-			if err != nil {
-				return fmt.Errorf("failed to connect to daemon: %w", err)
-			}
-			defer c.Close()
-
-			if err := c.DeleteFileDistributed(fileID, distDeleteCoord, tlsConfig, distHidden, distHiddenPass); err != nil {
+			if err := daemon.DeleteFileDistributedRPC(args); err != nil {
 				return fmt.Errorf("distributed delete failed: %w", err)
 			}
+			fmt.Println("File deleted successfully in distributed mode.")
+			return nil
 		} else {
 			c, err := client.NewClient()
 			if err != nil {

@@ -48,3 +48,50 @@ func EnsureLocalSession() error {
 
 	return nil
 }
+
+func AddFileDistributedRPC(args *types.DistAddArgs) error {
+	client, err := ConnectRPC()
+	if err != nil { return err }
+	defer client.Close()
+
+	var reply bool
+	err = client.Call("VaultDaemon.AddFileDistributed", args, &reply)
+	if err != nil { return err }
+	if !reply { return fmt.Errorf("daemon returned false") }
+	return nil
+}
+
+func ExportFileDistributedRPC(args *types.DistExportArgs) error {
+	client, err := ConnectRPC()
+	if err != nil { return err }
+	defer client.Close()
+
+	var reply bool
+	err = client.Call("VaultDaemon.ExportFileDistributed", args, &reply)
+	if err != nil { return err }
+	if !reply { return fmt.Errorf("daemon returned false") }
+	return nil
+}
+
+func ListFilesDistributedRPC(args *types.DistListArgs) ([]*types.FileRecord, error) {
+	client, err := ConnectRPC()
+	if err != nil { return nil, err }
+	defer client.Close()
+
+	var reply []*types.FileRecord
+	err = client.Call("VaultDaemon.ListFilesDistributed", args, &reply)
+	if err != nil { return nil, err }
+	return reply, nil
+}
+
+func DeleteFileDistributedRPC(args *types.DistDeleteArgs) error {
+	client, err := ConnectRPC()
+	if err != nil { return err }
+	defer client.Close()
+
+	var reply bool
+	err = client.Call("VaultDaemon.DeleteFileDistributed", args, &reply)
+	if err != nil { return err }
+	if !reply { return fmt.Errorf("daemon returned false") }
+	return nil
+}
