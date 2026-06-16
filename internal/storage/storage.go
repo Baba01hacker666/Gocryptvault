@@ -419,16 +419,16 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 	masterKey := sess.GetMasterKey()
 	objectsDir := filepath.Join(v.BaseDir, "objects")
 
+	type exportResult struct {
+		data []byte
+		err  error
+	}
+
 	type exportJob struct {
 		index     int
 		shardIDs  []string
 		chunkSize int
-	}
-
-	type exportResult struct {
-		index int
-		data  []byte
-		err   error
+		resCh     chan exportResult
 	}
 
 	numWorkers := runtime.NumCPU()
@@ -437,8 +437,6 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 	}
 
 	jobs := make(chan exportJob, numWorkers)
-	results := make(chan exportResult, numWorkers)
-
 	var wg sync.WaitGroup
 
 	for i := 0; i < numWorkers; i++ {
@@ -447,10 +445,9 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 			defer wg.Done()
 			for job := range jobs {
 				plaintext, err := objects.RetrieveShards(objectsDir, job.shardIDs, masterKey, job.chunkSize)
-				results <- exportResult{
-					index: job.index,
-					data:  plaintext,
-					err:   err,
+				job.resCh <- exportResult{
+					data: plaintext,
+					err:  err,
 				}
 			}
 		}()
@@ -458,8 +455,15 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 
 	go func() {
 		wg.Wait()
-		close(results)
 	}()
+
+	futures := make([]chan exportResult, len(record.Chunks))
+	for i := range record.Chunks {
+		futures[i] = make(chan exportResult, 1)
+	}
+
+	maxInFlight := numWorkers * 2
+	sem := make(chan struct{}, maxInFlight)
 
 	go func() {
 		for i, chunk := range record.Chunks {
@@ -467,36 +471,25 @@ func (v *Vault) ExportFile(fileID string, outPath string) error {
 			for j, s := range chunk.Shards {
 				shardIDs[j] = s.ShardID
 			}
+			sem <- struct{}{} // acquire slot
 			jobs <- exportJob{
 				index:     i,
 				shardIDs:  shardIDs,
 				chunkSize: chunk.Size,
+				resCh:     futures[i],
 			}
 		}
 		close(jobs)
 	}()
 
-	// Process results incrementally to avoid loading entire file in memory
-	resultMap := make(map[int][]byte)
-	nextIndexToWrite := 0
-
-	for res := range results {
+	for i := range record.Chunks {
+		res := <-futures[i]
+		<-sem // release slot
 		if res.err != nil {
 			return res.err
 		}
-		resultMap[res.index] = res.data
-
-		// Drain the map sequentially
-		for {
-			if data, ok := resultMap[nextIndexToWrite]; ok {
-				if _, err := out.Write(data); err != nil {
-					return err
-				}
-				delete(resultMap, nextIndexToWrite)
-				nextIndexToWrite++
-			} else {
-				break
-			}
+		if _, err := out.Write(res.data); err != nil {
+			return err
 		}
 	}
 

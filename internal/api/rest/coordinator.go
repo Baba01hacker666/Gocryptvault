@@ -24,6 +24,7 @@ func NewRESTHandler(coord *coordinator.CoordinatorServer) *RESTHandler {
 
 func (h *RESTHandler) registerRoutes() {
 	h.mux.HandleFunc("/api/v1/health", h.handleHealth)
+	h.mux.HandleFunc("/api/v1/cluster/status", h.handleClusterStatus)
 	// Additional routes for RegisterNode, Heartbeat, UploadPlan etc.
 }
 
@@ -34,6 +35,24 @@ func (h *RESTHandler) handleHealth(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{"status": "ok", "service": "coordinator"})
+}
+
+func (h *RESTHandler) handleClusterStatus(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if err := coordinator.VerifyClientRole(r.TLS, "coordinator", "client", "node"); err != nil {
+		http.Error(w, err.Error(), http.StatusForbidden)
+		return
+	}
+
+	nodes := h.coord.Registry.GetHealthyNodes()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+		"nodes":  nodes,
+	})
 }
 
 func (h *RESTHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
@@ -663,4 +664,43 @@ func (c *Client) ensureSession() error {
 	}
 
 	return session.InitSession(reply.MasterKey, reply.MetaKey)
+}
+
+type NodeStatus struct {
+	ID            string `json:"ID"`
+	Endpoint      string `json:"Endpoint"`
+	CapacityBytes int64  `json:"CapacityBytes"`
+	LastSeen      string `json:"LastSeen"`
+}
+
+func (c *Client) GetClusterStatus(coordinatorAddr string, tlsConfig *tls.Config) ([]NodeStatus, error) {
+	// Use HTTPS to contact the REST endpoint of the coordinator
+	transport := &http.Transport{
+		TLSClientConfig: tlsConfig,
+	}
+	httpClient := &http.Client{
+		Transport: transport,
+		Timeout:   10 * time.Second,
+	}
+
+	url := fmt.Sprintf("https://%s/api/v1/cluster/status", coordinatorAddr)
+	resp, err := httpClient.Get(url)
+	if err != nil {
+		return nil, fmt.Errorf("failed to contact coordinator: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("coordinator returned status %d", resp.StatusCode)
+	}
+
+	var result struct {
+		Status string       `json:"status"`
+		Nodes  []NodeStatus `json:"nodes"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+
+	return result.Nodes, nil
 }

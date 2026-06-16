@@ -5,10 +5,12 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased]
 
 ### Added
+- **CLI**: Added `gocryptvault cluster-status` command. You can now securely query the Coordinator's HTTPS REST API to instantly view the health, active endpoint, capacity, and `LastSeen` timestamp of all active Storage Nodes in the distributed cluster.
 - **Daemon**: Added configurable Auto-Lock Timeout. The vault daemon can now be started with a custom timeout (e.g. `--timeout 1h`) instead of the hardcoded 15 minutes, or disabled entirely (`--timeout 0`). This flag is available on both the `daemon` and `unlock` commands.
 - **Coordinator**: Implemented automated stale node eviction. The coordinator now spins up a background goroutine that periodically sweeps the node registry and automatically removes any nodes that haven't sent a heartbeat within the last 5 minutes.
 
 ### Changed
+- **Storage**: Fixed unbounded memory growth during massive file exports. The worker pool queue is now strictly bounded by a semaphore matching the concurrent CPU limit (`maxInFlight`). Out-of-order chunk processing no longer accumulates in memory while waiting for slower chunks to decrypt, preventing OOM crashes on large files.
 - **FUSE / Storage**: Massive performance optimization for FUSE mount `stat` and `read` operations. The `Getattr` and `Read` operations in the FUSE filesystem were previously iterating over the entire list of files in the vault sequentially (O(N)). Introduced an O(1) `GetFile(fileID)` dictionary lookup in the `Storage` layer and exposed it through the Daemon to eliminate this severe bottleneck.
 
 ### Fixed
