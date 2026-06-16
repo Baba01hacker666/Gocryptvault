@@ -160,6 +160,20 @@ func (d *Daemon) ExportFile(args *types.ExportFileArgs, reply *bool) error {
 	return nil
 }
 
+func (d *Daemon) DeleteFile(fileID string, reply *bool) error {
+	d.mu.Lock()
+	defer d.mu.Unlock()
+
+	err := d.vault.DeleteFile(fileID)
+	if err != nil {
+		*reply = false
+		return err
+	}
+	*reply = true
+	d.lastActivity = time.Now()
+	return nil
+}
+
 func (d *Daemon) Lock(req *struct{}, reply *bool) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()

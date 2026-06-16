@@ -87,3 +87,11 @@ func (c *Client) ExportFile(fileID, destDir string) error {
 	return nil
 }
 
+func (c *Client) DeleteFileLocal(fileID string) error {
+	var reply bool
+	if err := c.RPC.Call("VaultDaemon.DeleteFile", fileID, &reply); err != nil {
+		return fmt.Errorf("client: failed to delete file: %w", err)
+	}
+	return nil
+}
+

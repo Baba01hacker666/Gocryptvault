@@ -36,9 +36,14 @@ var deleteCmd = &cobra.Command{
 				return fmt.Errorf("distributed delete failed: %w", err)
 			}
 		} else {
-			v := getVault()
-			if err := v.DeleteFile(fileID); err != nil {
-				return fmt.Errorf("failed to delete file: %w", err)
+			c, err := client.NewClient()
+			if err != nil {
+				return fmt.Errorf("failed to connect to daemon (is it running?): %w", err)
+			}
+			defer c.Close()
+
+			if err := c.DeleteFileLocal(fileID); err != nil {
+				return fmt.Errorf("failed to delete file locally: %w", err)
 			}
 		}
 
