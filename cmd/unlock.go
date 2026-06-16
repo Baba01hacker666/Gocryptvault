@@ -10,6 +10,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
+var unlockTimeout time.Duration
+
 var unlockCmd = &cobra.Command{
 	Use:   "unlock",
 	Short: "Unlock the vault",
@@ -29,7 +31,7 @@ var unlockCmd = &cobra.Command{
 			if err != nil {
 				return fmt.Errorf("failed to get executable path: %w", err)
 			}
-			daemonCmd := exec.Command(exe, "daemon")
+			daemonCmd := exec.Command(exe, "daemon", "--timeout", unlockTimeout.String())
 			if err := daemonCmd.Start(); err != nil {
 				return fmt.Errorf("failed to start daemon: %w", err)
 			}
@@ -60,5 +62,6 @@ var unlockCmd = &cobra.Command{
 }
 
 func init() {
+	unlockCmd.Flags().DurationVar(&unlockTimeout, "timeout", 15*time.Minute, "Auto-lock timeout for the daemon (e.g. 15m, 1h, 0 to disable)")
 	rootCmd.AddCommand(unlockCmd)
 }

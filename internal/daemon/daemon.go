@@ -20,19 +20,19 @@ import (
 )
 
 const SocketName = "gocryptvault.sock"
-const AutoLockTimeout = 15 * time.Minute
-
 type Daemon struct {
-	vault        *storage.Vault
-	mu           sync.Mutex
-	lastActivity time.Time
-	quit         chan struct{} // FIXED HIGH-04: goroutine now has a shutdown path
+	vault           *storage.Vault
+	mu              sync.Mutex
+	lastActivity    time.Time
+	quit            chan struct{}
+	autoLockTimeout time.Duration
 }
 
-func NewDaemon(vault *storage.Vault) *Daemon {
+func NewDaemon(vault *storage.Vault, timeout time.Duration) *Daemon {
 	d := &Daemon{
-		vault: vault,
-		quit:  make(chan struct{}),
+		vault:           vault,
+		quit:            make(chan struct{}),
+		autoLockTimeout: timeout,
 	}
 	go d.autoLockRoutine()
 	return d
@@ -59,7 +59,7 @@ func (d *Daemon) autoLockRoutine() {
 			d.mu.Unlock()
 
 			// session has its own internal lock; do NOT hold d.mu here
-			if session.IsUnlocked() && elapsed > AutoLockTimeout {
+			if session.IsUnlocked() && elapsed > d.autoLockTimeout && d.autoLockTimeout > 0 {
 				log.Println("Auto-locking vault due to inactivity...")
 				session.DestroySession()
 			}
@@ -177,8 +177,8 @@ func (d *Daemon) Status(req *struct{}, reply *types.StatusReply) error {
 	reply.Unlocked = unlocked
 
 	if unlocked {
-		rem := AutoLockTimeout - time.Since(d.lastActivity)
-		if rem < 0 {
+		rem := d.autoLockTimeout - time.Since(d.lastActivity)
+		if rem < 0 || d.autoLockTimeout == 0 {
 			rem = 0
 		}
 		reply.TimeUntilLock = rem.String()
@@ -189,7 +189,7 @@ func (d *Daemon) Status(req *struct{}, reply *types.StatusReply) error {
 	return nil
 }
 
-func RunServer() error {
+func RunServer(timeout time.Duration) error {
 	vaultPath := config.GetVaultPath()
 	socketPath := filepath.Join(vaultPath, SocketName)
 
@@ -201,7 +201,7 @@ func RunServer() error {
 	os.Remove(socketPath)
 
 	vault := storage.NewVault(vaultPath)
-	d := NewDaemon(vault)
+	d := NewDaemon(vault, timeout)
 
 	rpc.RegisterName("VaultDaemon", d)
 

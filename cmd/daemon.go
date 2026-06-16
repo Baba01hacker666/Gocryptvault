@@ -4,9 +4,13 @@ import (
 	"fmt"
 	"log"
 
+	"time"
+
 	"github.com/Baba01hacker666/Gocryptvault/internal/daemon"
 	"github.com/spf13/cobra"
 )
+
+var daemonTimeout time.Duration
 
 var daemonCmd = &cobra.Command{
 	Use:   "daemon",
@@ -21,7 +25,7 @@ var daemonCmd = &cobra.Command{
 		}
 
 		fmt.Println("Starting vault daemon in foreground...")
-		if err := daemon.RunServer(); err != nil {
+		if err := daemon.RunServer(daemonTimeout); err != nil {
 			log.Fatalf("Daemon error: %v", err)
 		}
 		return nil
@@ -29,5 +33,6 @@ var daemonCmd = &cobra.Command{
 }
 
 func init() {
+	daemonCmd.Flags().DurationVar(&daemonTimeout, "timeout", 15*time.Minute, "Auto-lock timeout (e.g. 15m, 1h, 0 to disable)")
 	rootCmd.AddCommand(daemonCmd)
 }
