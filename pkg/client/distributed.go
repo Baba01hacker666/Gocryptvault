@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"sync"
 	"time"
 
@@ -450,49 +451,111 @@ func (c *Client) ExportFileDistributed(fileID, destDir string, coordinatorAddr s
 	defer out.Close()
 
 	masterKey := sess.GetMasterKey()
-	limit := make(chan struct{}, 4)
+	
+	type chunkResult struct {
+		data []byte
+		err  error
+	}
 
-	for _, chunk := range record.Chunks {
-		shards := make([][]byte, objects.DataShards+objects.ParityShards)
-		var wg sync.WaitGroup
-		var shardMu sync.Mutex
-		foundCount := 0
-		
-		for _, s := range chunk.Shards {
-			// Find location for this shard ID from plan
-			endpoint, ok := plan.Locations[s.ShardID]
-			if !ok || endpoint == "" {
-				continue
-			}
-			
-			wg.Add(1)
-			go func(idx int, sID string, addr string) {
-				defer wg.Done()
-				limit <- struct{}{}
-				defer func() { <-limit }()
+	type chunkJob struct {
+		index int
+		chunk types.ChunkInfo
+		resCh chan chunkResult
+	}
 
-				data, err := c.downloadShard(addr, sID, tlsConfig)
-				if err == nil {
-					shardMu.Lock()
-					shards[idx] = data
-					foundCount++
-					shardMu.Unlock()
+	numWorkers := runtime.NumCPU()
+	if numWorkers > 4 {
+		numWorkers = 4
+	}
+
+	jobs := make(chan chunkJob, numWorkers)
+	var wg sync.WaitGroup
+
+	for i := 0; i < numWorkers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for job := range jobs {
+				shards := make([][]byte, objects.DataShards+objects.ParityShards)
+				var sWg sync.WaitGroup
+				var shardMu sync.Mutex
+				foundCount := 0
+
+				for _, s := range job.chunk.Shards {
+					endpoint, ok := plan.Locations[s.ShardID]
+					if !ok || endpoint == "" {
+						continue
+					}
+					
+					sWg.Add(1)
+					go func(idx int, sID string, addr string) {
+						defer sWg.Done()
+						data, err := c.downloadShard(addr, sID, tlsConfig)
+						if err == nil {
+							shardMu.Lock()
+							shards[idx] = data
+							foundCount++
+							shardMu.Unlock()
+						}
+					}(s.Index, s.ShardID, endpoint)
 				}
-			}(s.Index, s.ShardID, endpoint)
-		}
-		wg.Wait()
+				sWg.Wait()
 
-		if foundCount < objects.DataShards {
-			return fmt.Errorf("insufficient shards for chunk (found %d, need %d)", foundCount, objects.DataShards)
-		}
+				if foundCount < objects.DataShards {
+					job.resCh <- chunkResult{err: fmt.Errorf("insufficient shards for chunk (found %d, need %d)", foundCount, objects.DataShards)}
+					continue
+				}
 
-		plaintext, err := objects.ReconstructAndDecrypt(shards, masterKey, chunk.Size)
-		if err != nil {
-			return fmt.Errorf("failed to reconstruct chunk: %w", err)
+				plaintext, err := objects.ReconstructAndDecrypt(shards, masterKey, job.chunk.Size)
+				job.resCh <- chunkResult{
+					data: plaintext,
+					err:  err,
+				}
+			}
+		}()
+	}
+
+	futures := make([]chan chunkResult, len(record.Chunks))
+	for i := range record.Chunks {
+		futures[i] = make(chan chunkResult, 1)
+	}
+
+	maxInFlight := numWorkers * 2
+	sem := make(chan struct{}, maxInFlight)
+
+	go func() {
+		for i, chunk := range record.Chunks {
+			sem <- struct{}{}
+			jobs <- chunkJob{
+				index: i,
+				chunk: chunk,
+				resCh: futures[i],
+			}
 		}
-		if _, err := out.Write(plaintext); err != nil {
-			return err
+		close(jobs)
+	}()
+
+	var finalErr error
+	for i := range record.Chunks {
+		res := <-futures[i]
+		<-sem
+		if res.err != nil {
+			if finalErr == nil {
+				finalErr = res.err
+			}
+			continue
 		}
+		if finalErr == nil {
+			if _, err := out.Write(res.data); err != nil {
+				finalErr = err
+			}
+		}
+	}
+	
+	wg.Wait()
+
+	if finalErr != nil {
+		return finalErr
 	}
 
 	return nil
