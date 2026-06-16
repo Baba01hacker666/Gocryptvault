@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"context"
 	"sort"
 	"sync"
 	"time"
@@ -84,4 +85,25 @@ func (r *Registry) DeleteShardLocations(fileID string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 	delete(r.shardLocations, fileID)
+}
+
+func (r *Registry) StartEviction(ctx context.Context, timeout time.Duration) {
+	ticker := time.NewTicker(timeout)
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				ticker.Stop()
+				return
+			case <-ticker.C:
+				r.mu.Lock()
+				for id, n := range r.nodes {
+					if time.Since(n.LastSeen) > timeout {
+						delete(r.nodes, id)
+					}
+				}
+				r.mu.Unlock()
+			}
+		}
+	}()
 }

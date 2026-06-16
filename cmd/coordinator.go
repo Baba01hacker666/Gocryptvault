@@ -1,11 +1,13 @@
 package cmd
 
 import (
+	"context"
 	"crypto/tls"
 	"fmt"
 	"log"
 	"net"
 	"net/http"
+	"time"
 
 	pb "github.com/Baba01hacker666/Gocryptvault/api/proto/v1"
 	"github.com/Baba01hacker666/Gocryptvault/internal/api/rest"
@@ -14,7 +16,6 @@ import (
 	"github.com/spf13/cobra"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
-
 )
 
 var (
@@ -61,6 +62,7 @@ var coordinatorCmd = &cobra.Command{
 
 
 		registry := coordinator.NewRegistry()
+		registry.StartEviction(context.Background(), 5*time.Minute)
 		server := &coordinator.CoordinatorServer{
 			Registry: registry,
 			VaultDir: coordVault,
