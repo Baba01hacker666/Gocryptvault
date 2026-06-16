@@ -11,7 +11,6 @@ import (
 	"github.com/Baba01hacker666/Gocryptvault/internal/objects"
 	"github.com/Baba01hacker666/Gocryptvault/internal/session"
 	"github.com/Baba01hacker666/Gocryptvault/internal/storage"
-	"github.com/Baba01hacker666/Gocryptvault/pkg/types"
 	"github.com/hanwen/go-fuse/v2/fs"
 	"github.com/hanwen/go-fuse/v2/fuse"
 )
@@ -123,18 +122,16 @@ var _ = (fs.NodeOpener)((*FileNode)(nil))
 var _ = (fs.NodeGetattrer)((*FileNode)(nil))
 
 func (f *FileNode) Getattr(ctx context.Context, fh fs.FileHandle, out *fuse.AttrOut) syscall.Errno {
-	files, err := f.Vault.ListFiles()
+	record, err := f.Vault.GetFile(f.RecordID)
 	if err != nil {
+		if err == storage.ErrFileNotFound {
+			return syscall.ENOENT
+		}
 		return syscall.EIO
 	}
-	for _, record := range files {
-		if record.ID == f.RecordID {
-			out.Mode = fuse.S_IFREG | 0444
-			out.Size = uint64(record.Size)
-			return 0
-		}
-	}
-	return syscall.ENOENT
+	out.Mode = fuse.S_IFREG | 0444
+	out.Size = uint64(record.Size)
+	return 0
 }
 
 func (f *FileNode) Open(ctx context.Context, flags uint32) (fs.FileHandle, uint32, syscall.Errno) {
@@ -157,20 +154,12 @@ func (fh *FileHandle) Read(ctx context.Context, dest []byte, off int64) (fuse.Re
 		return nil, syscall.EIO
 	}
 
-	files, err := fh.Vault.ListFiles()
+	record, err := fh.Vault.GetFile(fh.RecordID)
 	if err != nil {
-		return nil, syscall.EIO
-	}
-
-	var record *types.FileRecord
-	for _, r := range files {
-		if r.ID == fh.RecordID {
-			record = r
-			break
+		if err == storage.ErrFileNotFound {
+			return nil, syscall.ENOENT
 		}
-	}
-	if record == nil {
-		return nil, syscall.ENOENT
+		return nil, syscall.EIO
 	}
 
 	if off >= record.Size {

@@ -116,20 +116,14 @@ func (d *Daemon) GetFile(fileID string, reply *types.FileRecord) error {
 	d.mu.Lock()
 	defer d.mu.Unlock()
 
-	files, err := d.vault.ListFiles()
+	record, err := d.vault.GetFile(fileID)
 	if err != nil {
 		return err
 	}
 
-	for _, f := range files {
-		if f.ID == fileID {
-			*reply = *f
-			d.lastActivity = time.Now()
-			return nil
-		}
-	}
-
-	return fmt.Errorf("file not found")
+	*reply = *record
+	d.lastActivity = time.Now()
+	return nil
 }
 
 func (d *Daemon) AddFile(args *types.AddFileArgs, reply *bool) error {

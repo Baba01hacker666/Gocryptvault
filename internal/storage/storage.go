@@ -520,6 +520,23 @@ func (v *Vault) ListFiles() ([]*types.FileRecord, error) {
 	return files, nil
 }
 
+func (v *Vault) GetFile(fileID string) (*types.FileRecord, error) {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+
+	db, err := v.getMetadataLocked()
+	if err != nil {
+		return nil, err
+	}
+
+	record, ok := db.Files[fileID]
+	if !ok {
+		return nil, ErrFileNotFound
+	}
+
+	return record, nil
+}
+
 func (v *Vault) DeleteFile(fileID string) error {
 	sess, err := session.GetSession()
 	if err != nil {
